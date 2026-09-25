@@ -1,0 +1,25 @@
+{
+    "preset": "psr12",
+    "rules": {
+        "align_multiline_comment": true,
+        "array_indentation": true,
+        "array_syntax": true,
+        "blank_line_after_namespace": true,
+        "blank_line_after_opening_tag": true,
+        "combine_consecutive_issets": true,
+        "combine_consecutive_unsets": true,
+        "declare_parentheses": true,
+        "new_with_parentheses": false,
+        "explicit_string_variable": true,
+        "function_typehint_space": true,
+        "single_blank_line_at_eof": true,
+        "no_useless_else": true,
+        "no_useless_return": true,
+        "phpdoc_var_without_name": false,
+        "strict_comparison": true,
+        "mb_str_functions": true,
+        "no_unused_imports": true,
+        "no_unreachable_default_argument_value": true,
+        "no_useless_sprintf": true
+    }
+}

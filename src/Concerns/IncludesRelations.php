@@ -28,7 +28,7 @@ trait IncludesRelations
         $seen = [];
 
         foreach ($this as $model) {
-            $key = $this->relationGraphIdentityKey($model);
+            $key = $this->relationIdentityKey($model);
 
             if (isset($seen[$key])) {
                 continue;
@@ -40,8 +40,8 @@ trait IncludesRelations
 
         $pushRelated = function (Model $model) use (&$pushRelated, &$models, &$seen, $relations): void {
             foreach ($relations as $relation) {
-                foreach ($this->relationGraphModels($model, $relation) as $related) {
-                    $key = $this->relationGraphIdentityKey($related);
+                foreach ($this->relatedModels($model, $relation) as $related) {
+                    $key = $this->relationIdentityKey($related);
 
                     if (isset($seen[$key])) {
                         continue;
@@ -59,7 +59,7 @@ trait IncludesRelations
             $pushRelated($model);
         }
 
-        return $this->newRelationGraphCollection($models);
+        return $this->newRelationCollection($models);
     }
 
     /**
@@ -76,11 +76,11 @@ trait IncludesRelations
             return $this;
         }
 
-        $tree = $this->relationGraphPathTree((array) $relations);
+        $tree = $this->relationPathTree((array) $relations);
         $canonical = [];
 
         foreach ($this as $model) {
-            $canonical[$this->relationGraphIdentityKey($model)] = $model;
+            $canonical[$this->relationIdentityKey($model)] = $model;
         }
 
         $this->includeMissingRelationsInGraph($this->all(), $tree, $canonical);
@@ -106,12 +106,12 @@ trait IncludesRelations
                 $relatedModels = [];
 
                 foreach ($morphRelations as $relation) {
-                    array_push($relatedModels, ...$this->relationGraphModels($model, $relation));
+                    array_push($relatedModels, ...$this->relatedModels($model, $relation));
                 }
 
                 return $relatedModels;
             })
-            ->unique(fn (Model $model): string => $this->relationGraphIdentityKey($model))
+            ->unique(fn (Model $model): string => $this->relationIdentityKey($model))
             ->groupBy(fn (Model $model): string => $model::class);
 
         foreach ($relationsByClass as $modelClass => $relations) {

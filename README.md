@@ -27,15 +27,18 @@ required to get started.
 
 ## Concerns
 
-| Concern                     | What it adds                                                                                                                                                        |
-| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `PlugsRelations`            | `plug`, `plugMissing`, `plugAttribute`, `plugMorph`, `plugAppend`, `plugCached`, `plugCachedMissing`, `plugCachedCollection`, `loaded`, `deduplicateLoadedRelation` |
-| `CachesRelations`           | `withCached`, `loadCached`, `loadMissingCached`, `relationCached`, `getCachedRelation`                                                                              |
-| `IncludesRelations`         | `include`, `includeMissing`, `includeMissingMorph`                                                                                                                  |
-| `LoadsBatchRelationCounts`  | `loadCounts`                                                                                                                                                        |
-| `LoadsBatchAggregateCounts` | `loadBatchCount`                                                                                                                                                    |
+| Concern                     | What it adds                                                                                                                 |
+| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `PlugsRelations`            | `plug`, `plugMissing`, `plugAttribute`, `plugMorph`, `plugAppend`, `plugCached`, `plugCachedMissing`, `plugCachedCollection` |
+| `CachesRelations`           | `withCached`, `loadCached`, `loadMissingCached`, `relationCached`, `getCachedRelation`                                       |
+| `GraphRelations`            | `related`, `shareRelation`                                                                                                   |
+| `IncludesRelations`         | `include`, `includeMissing`, `includeMissingMorph`                                                                           |
+| `LoadsBatchRelationCounts`  | `loadCounts`                                                                                                                 |
+| `LoadsBatchAggregateCounts` | `loadBatchCount`                                                                                                             |
 
-`GraphRelations` backs `IncludesRelations` and is not meant to be used on its own.
+`IncludesRelations` builds on `GraphRelations`, so a collection that includes relations can also read
+and share them. Every method on both traits works on relations that are already in memory: none of
+them query on their own.
 
 ## Plugging known values
 
@@ -54,13 +57,15 @@ candidates by both morph alias and raw class name so pre- and post-morph-map dat
 $images->plugMorph('imageable', 'imageable_type', 'imageable_id', $posts);
 ```
 
-`loaded()` returns everything reachable through an already loaded relation path, and
-`deduplicateLoadedRelation()` collapses duplicate instances so two models never hold two copies of
-the same row.
+## Reading and sharing what is loaded
+
+`related()` returns everything reachable through an already loaded relation path, without the models
+you started from. `shareRelation()` collapses duplicate instances so the same row is never held
+twice, which means mutating or comparing one copy is visible everywhere it is loaded.
 
 ```php
-$comments = $conversations->loaded('messages.meta');
-$conversations->deduplicateLoadedRelation('channel');
+$comments = $conversations->related('messages.meta');
+$conversations->shareRelation('channel');
 ```
 
 ## Cached relations

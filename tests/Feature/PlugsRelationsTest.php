@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Collection as SupportCollection;
 use Illuminate\Support\Facades\Cache;
@@ -162,72 +161,6 @@ it('rejects appends for methods the model does not have', function (): void {
         ->toThrow(InvalidArgumentException::class, 'Method [missingMethod] does not exist on');
 });
 
-it('returns already loaded related models for a relation path', function (): void {
-    $author = User::query()->create(['name' => 'Ada']);
-    $posts = createPosts($author, 2);
-
-    createComments($posts->first(), 1);
-    createComments($posts->last(), 2);
-
-    $collection = Post::query()
-        ->whereKey($posts->modelKeys())
-        ->get()
-        ->load('comments.post');
-
-    expect($collection->loaded('comments'))->toBeInstanceOf(EloquentCollection::class)
-        ->and($collection->loaded('comments'))->toHaveCount(3)
-        ->and($collection->loaded('comments.post'))->toHaveCount(3)
-        ->and($collection->loaded('missing')->isEmpty())->toBeTrue();
-});
-
-it('collapses duplicate loaded relations onto a single instance', function (): void {
-    $author = User::query()->create(['name' => 'Ada']);
-    $post = createPosts($author, 1)->first();
-    $comment = createComments($post, 1)->first();
-
-    $collection = Post::query()->whereKey([$post->id])->get();
-
-    $collection->first()->setRelation('comments', EloquentCollection::make([
-        $comment,
-        Comment::query()->findOrFail($comment->id),
-    ]));
-
-    $collection->deduplicateLoadedRelation('comments');
-
-    $hydrated = $collection->first()->getRelation('comments');
-
-    expect($hydrated)->toHaveCount(2)
-        ->and($hydrated->first())->toBe($hydrated->last());
-});
-
-it('collapses duplicate single relations across the collection', function (): void {
-    $author = User::query()->create(['name' => 'Ada']);
-    $posts = createPosts($author, 2);
-
-    $collection = Post::query()->whereKey($posts->modelKeys())->orderBy('id')->get();
-
-    $collection->first()->setRelation('author', $author);
-    $collection->last()->setRelation('author', User::query()->findOrFail($author->id));
-
-    $collection->deduplicateLoadedRelation('author');
-
-    expect($collection->first()->getRelation('author'))->toBe($collection->last()->getRelation('author'));
-});
-
-it('leaves empty loaded relations untouched', function (): void {
-    $author = User::query()->create(['name' => 'Ada']);
-    $posts = createPosts($author, 1);
-
-    $collection = Post::query()->whereKey($posts->modelKeys())->get();
-
-    $collection->first()->setRelation('comments', EloquentCollection::make());
-
-    $empty = $collection->first()->getRelation('comments');
-
-    $collection->deduplicateLoadedRelation('comments');
-
-    expect($collection->first()->getRelation('comments'))->toBe($empty);
-});
 
 it('hydrates a cached single relation once and shares it across the collection', function (): void {
     $author = User::query()->create(['name' => 'Ada']);

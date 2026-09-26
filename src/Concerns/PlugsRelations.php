@@ -278,123 +278,6 @@ trait PlugsRelations
     }
 
     /**
-     * Return already-loaded related models for the given relation path.
-     */
-    public function loaded(string $relation): EloquentCollection
-    {
-        return $this->newRelatedCollection(
-            $this->collectLoadedRelationModels($this->all(), explode('.', $relation)),
-        );
-    }
-
-    /**
-     * Collapse duplicate already-loaded related model instances by class and key.
-     */
-    public function deduplicateLoadedRelation(string $relation): static
-    {
-        $canonical = [];
-
-        foreach ($this as $model) {
-            if (! $model->relationLoaded($relation)) {
-                continue;
-            }
-
-            $related = $model->getRelation($relation);
-
-            if ($related instanceof Model) {
-                $model->setRelation($relation, $this->canonicalModel($related, $canonical));
-                continue;
-            }
-
-            if ($related instanceof EloquentCollection) {
-                $model->setRelation(
-                    $relation,
-                    $related->isNotEmpty()
-                        ? $related->first()->newCollection(
-                            $related
-                                ->map(function (Model $item) use (&$canonical): Model {
-                                    return $this->canonicalModel($item, $canonical);
-                                })
-                                ->all()
-                        )
-                        : $related,
-                );
-            }
-        }
-
-        return $this;
-    }
-
-    /**
-     * @param  iterable<Model>  $models
-     * @param  list<string>  $segments
-     * @return list<Model>
-     */
-    private function collectLoadedRelationModels(iterable $models, array $segments): array
-    {
-        $relation = array_shift($segments);
-
-        if ($relation === null) {
-            return [];
-        }
-
-        $relatedModels = [];
-
-        foreach ($models as $model) {
-            array_push($relatedModels, ...$this->relationModels($model, $relation));
-        }
-
-        if ($segments === []) {
-            return $relatedModels;
-        }
-
-        return $this->collectLoadedRelationModels($relatedModels, $segments);
-    }
-
-    /**
-     * @return list<Model>
-     */
-    private function relationModels(Model $model, string $relation): array
-    {
-        if (! $model->relationLoaded($relation)) {
-            return [];
-        }
-
-        $related = $model->getRelation($relation);
-
-        if ($related instanceof Model) {
-            return [$related];
-        }
-
-        if ($related instanceof EloquentCollection) {
-            return $related->all();
-        }
-
-        if ($related instanceof SupportCollection) {
-            return $related
-                ->filter(fn (mixed $item): bool => $item instanceof Model)
-                ->values()
-                ->all();
-        }
-
-        return [];
-    }
-
-    /**
-     * @param  list<Model>  $models
-     */
-    private function newRelatedCollection(array $models): EloquentCollection
-    {
-        $first = $models[0] ?? null;
-
-        if ($first instanceof Model) {
-            return $first->newCollection($models);
-        }
-
-        return new static();
-    }
-
-    /**
      * @param  list<mixed>  $parameters
      */
     private function callOnEachModel(string $method, array $parameters): void
@@ -408,19 +291,6 @@ trait PlugsRelations
         }
     }
 
-    /**
-     * @param  array<string, Model>  $canonical
-     */
-    private function canonicalModel(Model $model, array &$canonical): Model
-    {
-        $key = $this->modelIdentityKey($model);
-
-        if (! isset($canonical[$key])) {
-            $canonical[$key] = $model;
-        }
-
-        return $canonical[$key];
-    }
 
     /**
      * @param  class-string<Model>  $relatedClass
@@ -514,10 +384,6 @@ trait PlugsRelations
         return $this;
     }
 
-    private function modelIdentityKey(Model $model): string
-    {
-        return $model->getMorphClass().':'.($model->getKey() ?? spl_object_id($model));
-    }
 
     /**
      * @param  iterable<array-key, mixed>  $candidates

@@ -9,12 +9,72 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection as SupportCollection;
 
 /**
+ * Reads and shares the relation graph that is already in memory.
+ *
+ * Nothing here queries: every method either walks relations that are loaded or
+ * collapses duplicate instances so one model is never held twice.
+ *
  * @template TModel of Model
  *
  * @mixin \Illuminate\Database\Eloquent\Collection<int, TModel>
  */
 trait GraphRelations
 {
+    /**
+     * Collect every model reachable through an already loaded relation path.
+     *
+     * The current models are not part of the result.
+     */
+    public function related(string $relation): EloquentCollection
+    {
+        return $this->newRelatedCollection(
+            $this->collectRelatedModels($this->all(), explode('.', $relation)),
+        );
+    }
+
+    /**
+     * Collapse duplicate already-loaded related model instances by class and key.
+     *
+     * Models keep their relations, only the instances behind them are shared, so
+     * comparing or mutating one copy is visible everywhere it is loaded.
+     * @return $this
+     */
+    public function shareRelation(string $relation): static
+    {
+        $canonical = [];
+
+        foreach ($this as $model) {
+            if (! $model->relationLoaded($relation)) {
+                continue;
+            }
+
+            $related = $model->getRelation($relation);
+
+            if ($related instanceof Model) {
+                $model->setRelation($relation, $this->canonicalRelation($related, $canonical));
+
+                continue;
+            }
+
+            if ($related instanceof EloquentCollection) {
+                $model->setRelation(
+                    $relation,
+                    $related->isNotEmpty()
+                        ? $this->newRelatedCollection(
+                            $related
+                                ->map(function (Model $item) use (&$canonical): Model {
+                                    return $this->canonicalRelation($item, $canonical);
+                                })
+                                ->all()
+                        )
+                        : $related,
+                );
+            }
+        }
+
+        return $this;
+    }
+
     /**
      * @param  iterable<mixed>  $models
      * @param  array<string, array<string, mixed>>  $tree
@@ -56,7 +116,7 @@ trait GraphRelations
                 $related = $model->getRelation($relation);
 
                 if ($related instanceof Model) {
-                    $canonicalRelated = $this->canonicalRelationGraphModel($related, $canonical);
+                    $canonicalRelated = $this->canonicalRelation($related, $canonical);
                     $model->setRelation($relation, $canonicalRelated);
                     $relatedModels[] = $canonicalRelated;
 
@@ -67,7 +127,7 @@ trait GraphRelations
                     $canonicalRelated = $related
                         ->filter(fn (mixed $item): bool => $item instanceof Model)
                         ->map(function (Model $item) use (&$canonical): Model {
-                            return $this->canonicalRelationGraphModel($item, $canonical);
+                            return $this->canonicalRelation($item, $canonical);
                         })
                         ->values();
 
@@ -75,7 +135,7 @@ trait GraphRelations
                         $model->setRelation(
                             $relation,
                             $canonicalRelated->isNotEmpty()
-                                ? $canonicalRelated->first()->newCollection($canonicalRelated->all())
+                                ? $this->newRelatedCollection($canonicalRelated->all())
                                 : $related,
                         );
                     } else {
@@ -94,7 +154,7 @@ trait GraphRelations
      * @param  list<string>  $relations
      * @return array<string, array<string, mixed>>
      */
-    protected function relationGraphPathTree(array $relations): array
+    protected function relationPathTree(array $relations): array
     {
         /** @var array<string, array<string, mixed>> $tree */
         $tree = [];
@@ -124,7 +184,7 @@ trait GraphRelations
     /**
      * @return list<Model>
      */
-    protected function relationGraphModels(Model $model, string $relation): array
+    protected function relatedModels(Model $model, string $relation): array
     {
         if (! $model->relationLoaded($relation)) {
             return [];
@@ -151,10 +211,33 @@ trait GraphRelations
     }
 
     /**
+     * Build a collection of related models.
+     *
+     * Related models are usually of a different class than the collection they
+     * were reached from, so the result is only guaranteed to be an Eloquent
+     * collection.
+     *
+     * @param  list<Model>  $models
+     * @return EloquentCollection<int, Model>
+     */
+    protected function newRelatedCollection(array $models): EloquentCollection
+    {
+        $first = $models[0] ?? null;
+
+        if ($first instanceof Model) {
+            return $first->newCollection($models);
+        }
+
+        return new static();
+    }
+
+    /**
+     * Build a collection that keeps the type of the current collection.
+     *
      * @param  list<Model>  $models
      * @return static
      */
-    protected function newRelationGraphCollection(array $models): static
+    protected function newRelationCollection(array $models): static
     {
         $first = $models[0] ?? null;
 
@@ -171,9 +254,9 @@ trait GraphRelations
     /**
      * @param  array<string, Model>  $canonical
      */
-    protected function canonicalRelationGraphModel(Model $model, array &$canonical): Model
+    protected function canonicalRelation(Model $model, array &$canonical): Model
     {
-        $key = $this->relationGraphIdentityKey($model);
+        $key = $this->relationIdentityKey($model);
 
         if (! isset($canonical[$key])) {
             $canonical[$key] = $model;
@@ -182,8 +265,34 @@ trait GraphRelations
         return $canonical[$key];
     }
 
-    protected function relationGraphIdentityKey(Model $model): string
+    protected function relationIdentityKey(Model $model): string
     {
         return $model->getMorphClass().':'.($model->getKey() ?? spl_object_id($model));
+    }
+
+    /**
+     * @param  iterable<Model>  $models
+     * @param  list<string>  $segments
+     * @return list<Model>
+     */
+    private function collectRelatedModels(iterable $models, array $segments): array
+    {
+        $relation = array_shift($segments);
+
+        if ($relation === null) {
+            return [];
+        }
+
+        $relatedModels = [];
+
+        foreach ($models as $model) {
+            array_push($relatedModels, ...$this->relatedModels($model, $relation));
+        }
+
+        if ($segments === []) {
+            return $relatedModels;
+        }
+
+        return $this->collectRelatedModels($relatedModels, $segments);
     }
 }

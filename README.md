@@ -27,14 +27,13 @@ required to get started.
 
 ## Concerns
 
-| Concern                     | What it adds                                                                                                                 |
-| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| `PlugsRelations`            | `plug`, `plugMissing`, `plugAttribute`, `plugMorph`, `plugAppend`, `plugCached`, `plugCachedMissing`, `plugCachedCollection` |
-| `CachesRelations`           | `withCached`, `loadCached`, `loadMissingCached`, `relationCached`, `getCachedRelation`                                       |
-| `GraphRelations`            | `related`, `shareRelation`                                                                                                   |
-| `IncludesRelations`         | `include`, `includeMissing`, `includeMissingMorph`                                                                           |
-| `LoadsBatchRelationCounts`  | `loadCounts`                                                                                                                 |
-| `LoadsBatchAggregateCounts` | `loadBatchCount`                                                                                                             |
+| Concern             | What it adds                                                                                                                 |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `PlugsRelations`    | `plug`, `plugMissing`, `plugAttribute`, `plugMorph`, `plugAppend`, `plugCached`, `plugCachedMissing`, `plugCachedCollection` |
+| `CachesRelations`   | `withCached`, `loadCached`, `loadMissingCached`, `relationCached`, `getCachedRelation`                                       |
+| `GraphRelations`    | `related`, `shareRelation`                                                                                                   |
+| `IncludesRelations` | `include`, `includeMissing`, `includeMissingMorph`                                                                           |
+| `BatchesRelations`  | `loadCounts`, `loadBatchCount`                                                                                               |
 
 `IncludesRelations` builds on `GraphRelations`, so a collection that includes relations can also read
 and share them. Every method on both traits works on relations that are already in memory: none of

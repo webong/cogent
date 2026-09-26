@@ -5,9 +5,8 @@ declare(strict_types=1);
 namespace Webong\Fluent\Tests\Fixtures\Collections;
 
 use Illuminate\Database\Eloquent\Collection;
+use Webong\Fluent\Concerns\BatchesRelations;
 use Webong\Fluent\Concerns\IncludesRelations;
-use Webong\Fluent\Concerns\LoadsBatchAggregateCounts;
-use Webong\Fluent\Concerns\LoadsBatchRelationCounts;
 use Webong\Fluent\Concerns\PlugsRelations;
 use Webong\Fluent\Tests\Fixtures\Models\Post;
 
@@ -18,8 +17,7 @@ use Webong\Fluent\Tests\Fixtures\Models\Post;
  */
 final class PostCollection extends Collection
 {
+    use BatchesRelations;
     use IncludesRelations;
-    use LoadsBatchAggregateCounts;
-    use LoadsBatchRelationCounts;
     use PlugsRelations;
 }

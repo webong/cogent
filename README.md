@@ -33,7 +33,7 @@ required to get started.
 | `CachesRelations`   | `withCached`, `loadCached`, `loadMissingCached`, `relationCached`, `getCachedRelation`                                       |
 | `GraphRelations`    | `related`, `shareRelation`                                                                                                   |
 | `IncludesRelations` | `include`, `includeMissing`, `includeMissingMorph`                                                                           |
-| `BatchesRelations`  | `loadCounts`, `loadBatchCount`                                                                                               |
+| `BatchesRelations`  | `loadCounts`, `loadAggregateCounts`                                                                                          |
 
 `IncludesRelations` builds on `GraphRelations`, so a collection that includes relations can also read
 and share them. Every method on both traits works on relations that are already in memory: none of
@@ -148,11 +148,11 @@ relation's own constraints, instead of a correlated subselect per row.
 $conversations->loadCounts('messages');
 ```
 
-`loadBatchCount()` counts anything you can query, and can cap the value so a UI never has to
+`loadAggregateCounts()` counts anything you can query, and can cap the value so a UI never has to
 render an unbounded number.
 
 ```php
-$conversations->loadBatchCount(
+$conversations->loadAggregateCounts(
     attribute: 'unread_messages_count',
     query: Message::query()->unread(),
     groupBy: 'conversation_id',

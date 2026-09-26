@@ -22,7 +22,7 @@ it('batch loads an aggregate count onto every model with one grouped query', fun
 
     $queries = $this->countQueries();
 
-    $result = $collection->loadBatchCount(
+    $result = $collection->loadAggregateCounts(
         attribute: 'comments_count',
         query: Comment::query(),
         groupBy: 'post_id',
@@ -47,7 +47,7 @@ it('caps the count and records which attributes were truncated', function (): vo
 
     $collection = Post::query()->whereKey($posts->modelKeys())->orderBy('id')->get();
 
-    $result = $collection->loadBatchCount(
+    $result = $collection->loadAggregateCounts(
         attribute: 'comments_count',
         query: Comment::query(),
         groupBy: 'post_id',
@@ -71,8 +71,8 @@ it('merges truncation flags for counts loaded on top of each other', function ()
 
     $collection = Post::query()->whereKey($posts->modelKeys())->get();
 
-    $collection->loadBatchCount('comments_count', Comment::query(), 'post_id', 1, null, 'counts_truncated');
-    $collection->loadBatchCount('posts_count', Post::query(), 'user_id', 10, null, 'counts_truncated');
+    $collection->loadAggregateCounts('comments_count', Comment::query(), 'post_id', 1, null, 'counts_truncated');
+    $collection->loadAggregateCounts('posts_count', Post::query(), 'user_id', 10, null, 'counts_truncated');
 
     expect($collection->first()->getAttribute('counts_truncated'))->toBe([
         'comments_count' => true,
@@ -88,7 +88,7 @@ it('applies constraints to the grouped count query', function (): void {
 
     $collection = Post::query()->whereKey($posts->modelKeys())->get();
 
-    $collection->loadBatchCount(
+    $collection->loadAggregateCounts(
         attribute: 'first_comments_count',
         query: Comment::query(),
         groupBy: 'post_id',
@@ -104,7 +104,7 @@ it('zeroes counts for models without a key and skips the query', function (): vo
 
     $queries = $this->countQueries();
 
-    $result = $collection->loadBatchCount(
+    $result = $collection->loadAggregateCounts(
         attribute: 'comments_count',
         query: Comment::query(),
         groupBy: 'post_id',
@@ -124,7 +124,7 @@ it('does not query for an empty collection when batching relation counts', funct
 
     $queries = $this->countQueries();
 
-    $result = $collection->loadBatchCount('comments_count', Comment::query(), 'post_id');
+    $result = $collection->loadAggregateCounts('comments_count', Comment::query(), 'post_id');
 
     expect($queries())->toBe(0)
         ->and($result->counts())->toBeEmpty();
@@ -136,7 +136,7 @@ it('refuses a negative cap', function (): void {
 
     $collection = Post::query()->whereKey($posts->modelKeys())->get();
 
-    expect(fn () => $collection->loadBatchCount('comments_count', Comment::query(), 'post_id', -1))
+    expect(fn () => $collection->loadAggregateCounts('comments_count', Comment::query(), 'post_id', -1))
         ->toThrow(InvalidArgumentException::class, '$countCap must be null or a non-negative integer.');
 });
 

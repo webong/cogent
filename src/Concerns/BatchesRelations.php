@@ -79,12 +79,17 @@ trait BatchesRelations
     }
 
     /**
+     * Batch-load a count from any query onto every model, grouped by a column.
+     *
+     * Pass a cap to clamp the value, and truncatedAttribute to record which counts
+     * were clamped so a UI can show "100+".
+     *
      * @template TRelatedModel of \Illuminate\Database\Eloquent\Model
      *
      * @param  Builder<TRelatedModel>  $query
      * @param  (Closure(Builder<TRelatedModel>): (Builder<TRelatedModel>|void))|null  $constraints
      */
-    public function loadBatchCount(
+    public function loadAggregateCounts(
         string $attribute,
         Builder $query,
         string $groupBy,

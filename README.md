@@ -33,7 +33,7 @@ required to get started.
 | `CachesRelations`   | `withCached`, `loadCached`, `loadMissingCached`, `relationCached`, `getCachedRelation`                                       |
 | `GraphRelations`    | `related`, `shareRelation`                                                                                                   |
 | `IncludesRelations` | `include`, `includeMissing`, `includeMissingMorph`                                                                           |
-| `BatchesRelations`  | `loadCounts`, `loadAggregateCounts`                                                                                          |
+| `BatchesRelations`  | `batchCount`, `batchAggregateCount`                                                                                          |
 
 `IncludesRelations` builds on `GraphRelations`, so a collection that includes relations can also read
 and share them. Every method on both traits works on relations that are already in memory: none of
@@ -141,18 +141,18 @@ $messages->includeMissingMorph('notifiable', [User::class => ['profile']]);
 
 ## Counts
 
-`loadCounts()` batch-loads `{snake(relation)}_count` with one grouped query that reuses the
-relation's own constraints, instead of a correlated subselect per row.
+`batchCount()` writes `{snake(relation)}_count` onto every model with one grouped query that reuses
+the relation's own constraints, instead of a correlated subselect per row.
 
 ```php
-$conversations->loadCounts('messages');
+$conversations->batchCount('messages');
 ```
 
-`loadAggregateCounts()` counts anything you can query, and can cap the value so a UI never has to
+`batchAggregateCount()` counts anything you can query, and can cap the value so a UI never has to
 render an unbounded number.
 
 ```php
-$conversations->loadAggregateCounts(
+$conversations->batchAggregateCount(
     attribute: 'unread_messages_count',
     query: Message::query()->unread(),
     groupBy: 'conversation_id',

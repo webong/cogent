@@ -35,7 +35,7 @@ trait BatchesRelations
      *
      * @return $this
      */
-    public function loadCounts(string $relationship): static
+    public function batchCount(string $relationship): static
     {
         if ($this->isEmpty()) {
             return $this;
@@ -89,7 +89,7 @@ trait BatchesRelations
      * @param  Builder<TRelatedModel>  $query
      * @param  (Closure(Builder<TRelatedModel>): (Builder<TRelatedModel>|void))|null  $constraints
      */
-    public function loadAggregateCounts(
+    public function batchAggregateCount(
         string $attribute,
         Builder $query,
         string $groupBy,

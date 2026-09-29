@@ -7,6 +7,9 @@ namespace Webong\Fluent\Tests\Fixtures\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Webong\Fluent\Attributes\CachedRelation;
+use Webong\Fluent\Concerns\DefinesCachedRelations;
+use Webong\Fluent\Tests\Fixtures\Collections\UserCollection;
 
 /**
  * @property int $id
@@ -14,6 +17,8 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
  */
 class User extends Model
 {
+    use DefinesCachedRelations;
+
     /**
      * @var list<string>
      */
@@ -22,16 +27,21 @@ class User extends Model
     public $timestamps = false;
 
     /**
-     * @return HasMany<Post, $this>
+     * @param  list<static>  $models
+     * @return UserCollection<static>
      */
+    public function newCollection(array $models = [])
+    {
+        return new UserCollection($models);
+    }
+
+    #[CachedRelation]
     public function posts(): HasMany
     {
         return $this->hasMany(Post::class, 'user_id');
     }
 
-    /**
-     * @return MorphMany<Tag, $this>
-     */
+    #[CachedRelation(ttl: 60)]
     public function tags(): MorphMany
     {
         return $this->morphMany(Tag::class, 'taggable');

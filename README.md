@@ -27,13 +27,14 @@ required to get started.
 
 ## Concerns
 
-| Concern             | What it adds                                                                                                                 |
-| ------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| `PlugsRelations`    | `plug`, `plugMissing`, `plugAttribute`, `plugMorph`, `plugAppend`, `plugCached`, `plugCachedMissing`, `plugCachedCollection` |
-| `CachesRelations`   | `withCached`, `loadCached`, `loadMissingCached`, `relationCached`, `getCachedRelation`                                       |
-| `GraphRelations`    | `related`, `shareRelation`                                                                                                   |
-| `IncludesRelations` | `include`, `includeMissing`, `includeMissingMorph`                                                                           |
-| `BatchesRelations`  | `batchCount`, `batchAggregateCount`                                                                                          |
+| Concern                  | What it adds                                                                                                                 |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
+| `PlugsRelations`         | `plug`, `plugMissing`, `plugAttribute`, `plugMorph`, `plugAppend`, `plugCached`, `plugCachedMissing`, `plugCachedCollection` |
+| `CachesRelations`        | `withCached`, `loadCached`, `loadMissingCached`, `relationCached`, `getCachedRelation`                                       |
+| `DefinesCachedRelations` | `cachedDefinition`, `cachedDefinitionFor`, on the model that declares the relations                                            |
+| `GraphRelations`         | `related`, `shareRelation`                                                                                                   |
+| `IncludesRelations`      | `include`, `includeMissing`, `includeMissingMorph`                                                                           |
+| `BatchesRelations`       | `batchCount`, `batchAggregateCount`                                                                                          |
 
 `IncludesRelations` builds on `GraphRelations`, so a collection that includes relations can also read
 and share them. Every method on both traits works on relations that are already in memory: none of
@@ -69,47 +70,61 @@ $conversations->shareRelation('channel');
 
 ## Cached relations
 
-Declare a relation once, then hydrate it from cache with a single batched query on a miss. Cached
-values are stored as raw attributes, so a warm cache costs no queries at all.
+Declare a relation as cacheable on the model, right where the relation itself is defined. Fluent reads
+the declaration off the relation method and derives everything else from the Eloquent relation: which
+key it caches under, how a miss is resolved and how many models come back. A warm cache costs no
+queries at all.
 
 ```php
-use Illuminate\Support\Collection as SupportCollection;
+use Webong\Fluent\Attributes\CachedRelation;
+use Webong\Fluent\Concerns\DefinesCachedRelations;
 
-final class CachedPostCollection extends Collection
+final class Post extends Model
 {
-    use \Webong\Fluent\Concerns\CachesRelations;
-    use \Webong\Fluent\Concerns\PlugsRelations;
+    use DefinesCachedRelations;
 
-    protected function cachedRelationConfig(string $relation): array
+    #[CachedRelation(ttl: 3600)]
+    public function author(): BelongsTo
     {
-        return match ($relation) {
-            'author' => [
-                'localKey' => 'user_id',
-                'relatedClass' => User::class,
-                'resolver' => fn (array $ids): SupportCollection => User::query()
-                    ->whereIn('id', $ids)
-                    ->get()
-                    ->keyBy('id'),
-                'cacheKey' => fn (mixed $id): string => "author:{$id}",
-                'ttl' => now()->addDay(),
-            ],
-            'comments' => [
-                'localKey' => 'id',
-                'relatedClass' => Comment::class,
-                'resolver' => fn (array $ids): SupportCollection => Comment::query()
-                    ->whereIn('post_id', $ids)
-                    ->get()
-                    ->groupBy('post_id'),
-                'cacheKey' => fn (mixed $id): string => "comments:{$id}",
-                'ttl' => now()->addMinutes(30),
-                'collection' => true,
-                'collectionClass' => CommentCollection::class,
-            ],
-            default => throw new InvalidArgumentException("No cached relation is configured for [{$relation}]."),
-        };
+        return $this->belongsTo(User::class, 'user_id');
+    }
+
+    public function comments(): HasMany
+    {
+        return $this->hasMany(Comment::class)->cached(
+            ttl: 600,
+            key: 'posts:{value}:comments',
+            collection: CommentCollection::class,
+        );
     }
 }
 ```
+
+`cached()` is a macro on every Eloquent relation, so the relation and the way it is cached stay in
+one statement. `#[CachedRelation]` is the same declaration for the relations that need nothing but a
+lifetime, and both can sit on the same method: the macro wins where they disagree.
+
+```php
+#[CachedRelation(ttl: 600)]
+public function comments(): HasMany
+{
+    return $this->hasMany(Comment::class)->cached(collection: CommentCollection::class);
+}
+```
+
+A `cached()` free function exists for the times a relation is built before it is returned. It takes
+the relation as its first argument and behaves the same.
+
+```php
+use function Webong\Fluent\cached;
+
+public function tags(): MorphMany
+{
+    return cached(relation: $this->morphMany(Tag::class, 'taggable'), ttl: 600);
+}
+```
+
+The collection then only has to name the relation:
 
 ```php
 $posts->withCached(['author', 'comments']);
@@ -117,6 +132,97 @@ $posts->loadMissingCached('author');
 $posts->relationCached('author');        // warm for every model in the collection
 $posts->relationCached('author', $id);   // warm for one key
 $posts->getCachedRelation('author', $id);
+```
+
+A collection only needs the `CachesRelations` concern for that:
+
+```php
+final class PostCollection extends Collection
+{
+    use CachesRelations;
+    use PlugsRelations;
+}
+```
+
+### What gets derived
+
+| relation        | cached under    | cardinality |
+| --------------- | --------------- | ----------- |
+| `BelongsTo`     | the foreign key | one         |
+| `HasOne`        | the local key   | one         |
+| `HasMany`       | the local key   | many        |
+| `MorphOne`      | the local key   | one         |
+| `MorphMany`     | the local key   | many        |
+| `BelongsToMany` | the parent key  | many        |
+| `MorphTo`       | not cacheable   |             |
+
+Keys follow `fluent:{model}:{relation}:{value}` unless `key` says otherwise, and any template
+accepts `{model}`, `{relation}` and `{value}`. Morph relations keep their type constraint, so rows
+of another type can never leak into a cache. `BelongsToMany` needs the column on the pivot to be
+resolvable, so pass `foreignKey` or a `resolver` to `cached()`.
+
+A resolver receives the query Fluent already built for the relation and the keys that missed, and
+returns the models keyed by the value they belong to:
+
+```php
+final class RecentCommentsResolver implements CachedRelationResolver
+{
+    public function resolve(Builder $query, array $localValues): Collection
+    {
+        return $query
+            ->whereIn('post_id', $localValues)
+            ->where('created_at', '>=', now()->subWeek())
+            ->get()
+            ->groupBy('post_id');
+    }
+}
+
+public function comments(): HasMany
+{
+    return $this->hasMany(Comment::class)->cached(resolver: RecentCommentsResolver::class);
+}
+```
+
+Constraints the relation cannot express on its own, such as `latestOfMany()`, need a resolver: the
+derived query is the foreign key and the morph type, nothing more.
+
+`cached()` is a runtime macro, so PHPStan needs to be told about it. The package ships the extension
+for it; add it to your `phpstan.neon` when you analyse models that use it.
+
+```neon
+services:
+    -
+        class: Webong\Fluent\PhpStan\CachedRelationMacroExtension
+        tags:
+            - phpstan.broker.methodsClassReflectionExtension
+```
+
+### Invalidation
+
+Because every key is derived, saving or deleting a related model forgets exactly the keys it made
+stale, in the cache and in the request scoped store alike.
+
+```php
+$comment->update(['body' => 'Edited']);   // forgets the comments cached for its post
+$author->update(['name' => 'Grace']);     // forgets the author cached under that user
+```
+
+A collection may still implement the deprecated `cachedRelationConfig()` to keep caches that predate
+model defined ones working. Those also take part in invalidation for the keys their configuration can
+derive on its own.
+
+### Reading what was resolved
+
+The declaration is a `CachedRelationDefinition`, readable from the model when you need it:
+
+```php
+$definition = $post->cachedDefinition('comments');
+
+$definition->localKey;               // 'id'
+$definition->relatedClass;           // Comment::class
+$definition->relatedForeignKey;      // 'post_id'
+$definition->ttl;                    // 600
+$definition->cacheKeyFor($post->id); // 'fluent:App\Models\Post:comments:1'
 ```
 
 A request-scoped store, registered as `Webong\Fluent\Support\CachedRelationAttributeStore`, keeps

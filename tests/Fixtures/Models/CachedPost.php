@@ -6,7 +6,14 @@ namespace Webong\Fluent\Tests\Fixtures\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
+use Webong\Fluent\Attributes\CachedRelation;
+use Webong\Fluent\Concerns\DefinesCachedRelations;
 use Webong\Fluent\Tests\Fixtures\Collections\CachedPostCollection;
+use Webong\Fluent\Tests\Fixtures\Collections\CommentCollection;
+
+use function Webong\Fluent\cached;
 
 /**
  * @property int $id
@@ -15,6 +22,8 @@ use Webong\Fluent\Tests\Fixtures\Collections\CachedPostCollection;
  */
 class CachedPost extends Model
 {
+    use DefinesCachedRelations;
+
     /**
      * @var list<string>
      */
@@ -33,11 +42,39 @@ class CachedPost extends Model
         return new CachedPostCollection($models);
     }
 
-    /**
-     * @return BelongsTo<User, $this>
-     */
+    #[CachedRelation(ttl: 60, key: 'fluent-test:author:{value}')]
     public function author(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
+    }
+
+    public function comments(): HasMany
+    {
+        return $this->hasMany(Comment::class, 'post_id')->cached(
+            ttl: 60,
+            key: 'fluent-test:comments:{value}',
+            collection: CommentCollection::class,
+        );
+    }
+
+    #[CachedRelation(ttl: 60)]
+    public function firstComment(): HasOne
+    {
+        return $this->hasOne(Comment::class, 'post_id');
+    }
+
+    public function commentsThroughTheHelper(): HasMany
+    {
+        return cached(
+            relation: $this->hasMany(Comment::class, 'post_id'),
+            ttl: 60,
+            key: 'fluent-test:helper-comments:{value}',
+            collection: CommentCollection::class,
+        );
+    }
+
+    public function uncachedComments(): HasMany
+    {
+        return $this->hasMany(Comment::class, 'post_id');
     }
 }

@@ -1,7 +1,16 @@
 includes:
     - vendor/larastan/larastan/extension.neon
 
+services:
+    -
+        class: Webong\Fluent\PhpStan\CachedRelationMacroExtension
+        tags:
+            - phpstan.broker.methodsClassReflectionExtension
+
 parameters:
+    excludePaths:
+        # The macro is bound to the relation at call time, so $this only exists there.
+        - src/Support/CachedRelationMacro.php
     paths:
         - src/
         - tests/Fixtures/

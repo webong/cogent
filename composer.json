@@ -1,7 +1,7 @@
 {
     "name": "webong/fluent",
     "type": "library",
-    "description": "Fluent Eloquent collection extensions: plug, include and batch-count relations without extra queries.",
+    "description": "Laravel Eloquent collection extensions: plug, include and count relations without extra queries.",
     "keywords": [
         "laravel",
         "eloquent",

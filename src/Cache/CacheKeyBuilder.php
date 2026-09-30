@@ -12,7 +12,7 @@ final class CacheKeyBuilder
      */
     public function build(string $namespace, string $domain, string $surface, array $parameters = [], array $segments = []): string
     {
-        $prefix = implode(':', array_filter([$namespace, ...$this->buildSegmentPath($segments), $domain, $surface]));
+        $prefix = implode(':', [$namespace, ...$this->buildSegmentPath($segments), $domain, $surface]);
 
         if ($parameters === []) {
             return $prefix;

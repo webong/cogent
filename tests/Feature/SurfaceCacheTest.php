@@ -3,8 +3,66 @@
 declare(strict_types=1);
 
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Cache\ArrayStore;
+use Illuminate\Cache\Repository;
 use Webong\Cogent\Cache\CacheKeyBuilder;
 use Webong\Cogent\Cache\SurfaceCache;
+
+it('preserves zero and empty key segments', function (array $segments, string $expected): void {
+    expect((new CacheKeyBuilder)->build('reports', 'exports', 'list', [], $segments))
+        ->toBe($expected);
+})->with([
+    'named zero' => [['user' => 0], 'reports:user:0:exports:list'],
+    'positional zero' => [['0'], 'reports:0:exports:list'],
+    'empty value' => [['search' => ''], 'reports:search::exports:list'],
+]);
+
+it('reads and writes a custom payload format', function (bool $taggable): void {
+    $repository = new class (new ArrayStore) extends Repository {
+        public bool $taggable = true;
+
+        public function supportsTags(): bool
+        {
+            return $this->taggable;
+        }
+    };
+    $repository->taggable = $taggable;
+    $storage = $taggable ? $repository->tags(['reports']) : $repository;
+    $storage->put('legacy', ['__reports_payload_v1' => true, 'value' => null], 60);
+    $cache = new SurfaceCache($repository, payloadMarker: '__reports_payload_v1');
+
+    $result = $cache->remember('legacy', ['reports'], 60, fn (): string => 'unexpected');
+    $cache->remember('fresh', ['reports'], 60, fn (): string => 'report');
+
+    expect($result->hit)->toBeTrue()
+        ->and($result->value)->toBeNull()
+        ->and($storage->get('fresh'))->toBe(['__reports_payload_v1' => true, 'value' => 'report']);
+})->with(['tagged' => true, 'tagless' => false]);
+
+it('uses custom fallback index and lock prefixes', function (): void {
+    $indexKey = 'reports:index:'.sha1('reports');
+    $store = Mockery::mock(ArrayStore::class)->makePartial();
+    $store->shouldReceive('lock')
+        ->once()
+        ->with('reports:index-lock:'.sha1($indexKey), 360)
+        ->passthru();
+    $repository = new class ($store) extends Repository {
+        public function supportsTags(): bool
+        {
+            return false;
+        }
+    };
+    $cache = new SurfaceCache($repository, indexPrefix: 'reports:index:', lockPrefix: 'reports:index-lock:');
+    $cache->remember('report', ['reports'], 60, fn (): string => 'payload');
+
+    expect($repository->get($indexKey))->toBe(['report'])
+        ->and($repository->get('report'))->toBe(['__cogent_surface_cache_payload_v1' => true, 'value' => 'payload']);
+
+    $cache->invalidateTags(['reports']);
+
+    expect($repository->get('report'))->toBeNull()
+        ->and($repository->get($indexKey))->toBeNull();
+});
 
 it('reuses a surface payload for the same cache key', function (): void {
     $cache = new SurfaceCache(Cache::store());

@@ -18,6 +18,8 @@ final class SurfaceCache
     public function __construct(
         private readonly Repository $cache,
         private readonly string $indexPrefix = 'cogent:surface-cache:index:',
+        private readonly string $payloadMarker = self::CACHE_VALUE_MARKER,
+        private readonly ?string $lockPrefix = null,
     ) {
     }
 
@@ -101,7 +103,7 @@ final class SurfaceCache
     {
         foreach ($tags as $tag) {
             $indexKey = $this->fallbackIndexKey($tag);
-            $lockName = $this->indexPrefix.'lock:'.sha1($indexKey);
+            $lockName = ($this->lockPrefix ?? $this->indexPrefix.'lock:').sha1($indexKey);
             $lockTtl = max(5, $ttl + 300);
             $store = $this->cache instanceof CacheRepository ? $this->cache->getStore() : null;
 
@@ -136,12 +138,12 @@ final class SurfaceCache
     }
 
     /**
-     * @return array{__cogent_surface_cache_payload_v1: true, value: mixed}
+     * @return array<string, mixed>
      */
     private function wrapCachedPayload(mixed $value): array
     {
         return [
-            self::CACHE_VALUE_MARKER => true,
+            $this->payloadMarker => true,
             'value' => $value,
         ];
     }
@@ -149,7 +151,7 @@ final class SurfaceCache
     private function unwrapCachedPayload(mixed $payload): mixed
     {
         if (is_array($payload)
-            && ($payload[self::CACHE_VALUE_MARKER] ?? false) === true
+            && ($payload[$this->payloadMarker] ?? false) === true
             && array_key_exists('value', $payload)) {
             return $payload['value'];
         }

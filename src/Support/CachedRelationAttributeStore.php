@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Webong\Fluent\Support;
+namespace Webong\Cogent\Support;
 
 final class CachedRelationAttributeStore
 {

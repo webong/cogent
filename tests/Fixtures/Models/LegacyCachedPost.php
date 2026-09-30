@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Webong\Fluent\Tests\Fixtures\Models;
+namespace Webong\Cogent\Tests\Fixtures\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Webong\Fluent\Tests\Fixtures\Collections\LegacyCachedPostCollection;
+use Webong\Cogent\Tests\Fixtures\Collections\LegacyCachedPostCollection;
 
 /**
  * @property int $id

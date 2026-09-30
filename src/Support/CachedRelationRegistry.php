@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Webong\Fluent\Support;
+namespace Webong\Cogent\Support;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -16,7 +16,7 @@ use Illuminate\Support\Facades\Cache;
 use InvalidArgumentException;
 use ReflectionMethod;
 use Throwable;
-use Webong\Fluent\Attributes\CachedRelation;
+use Webong\Cogent\Attributes\CachedRelation;
 
 /**
  * Turns a relation method on a model into a cached relation definition, and

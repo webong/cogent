@@ -2,16 +2,16 @@
 
 declare(strict_types=1);
 
-namespace Webong\Fluent;
+namespace Webong\Cogent;
 
 use Closure;
 use DateInterval;
 use DateTimeInterface;
 use Illuminate\Database\Eloquent\Relations\Relation;
-use Webong\Fluent\Support\CachedRelationCollector;
-use Webong\Fluent\Support\CachedRelationOverrides;
+use Webong\Cogent\Support\CachedRelationCollector;
+use Webong\Cogent\Support\CachedRelationOverrides;
 
-if (! function_exists('Webong\Fluent\cached')) {
+if (! function_exists('Webong\Cogent\cached')) {
     /**
      * Mark a relation method as cacheable without an attribute.
      *
@@ -24,7 +24,7 @@ if (! function_exists('Webong\Fluent\cached')) {
      * @param  string|null  $localKey  The attribute on this model the key is cached under.
      * @param  string|null  $foreignKey  The column on the related model that points back at this one.
      * @param  string|Closure(mixed): string|null  $key  A key template accepting {model}, {relation} and {value}.
-     * @param  class-string<\Webong\Fluent\Contracts\CachedRelationResolver>|Closure|null  $resolver
+     * @param  class-string<\Webong\Cogent\Contracts\CachedRelationResolver>|Closure|null  $resolver
      * @param  class-string<\Illuminate\Support\Collection>|null  $collection
      * @return TRelation
      */

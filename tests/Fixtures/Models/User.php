@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace Webong\Fluent\Tests\Fixtures\Models;
+namespace Webong\Cogent\Tests\Fixtures\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
-use Webong\Fluent\Attributes\CachedRelation;
-use Webong\Fluent\Concerns\DefinesCachedRelations;
-use Webong\Fluent\Tests\Fixtures\Collections\UserCollection;
+use Webong\Cogent\Attributes\CachedRelation;
+use Webong\Cogent\Concerns\DefinesCachedRelations;
+use Webong\Cogent\Tests\Fixtures\Collections\UserCollection;
 
 /**
  * @property int $id

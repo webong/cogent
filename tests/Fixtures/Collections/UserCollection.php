@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Webong\Fluent\Tests\Fixtures\Collections;
+namespace Webong\Cogent\Tests\Fixtures\Collections;
 
 use Illuminate\Database\Eloquent\Collection;
-use Webong\Fluent\Concerns\CachesRelations;
-use Webong\Fluent\Concerns\PlugsRelations;
-use Webong\Fluent\Tests\Fixtures\Models\User;
+use Webong\Cogent\Concerns\CachesRelations;
+use Webong\Cogent\Concerns\PlugsRelations;
+use Webong\Cogent\Tests\Fixtures\Models\User;
 
 /**
  * @template TModel of User

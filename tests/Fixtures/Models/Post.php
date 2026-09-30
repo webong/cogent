@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace Webong\Fluent\Tests\Fixtures\Models;
+namespace Webong\Cogent\Tests\Fixtures\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Support\Str;
-use Webong\Fluent\Tests\Fixtures\Collections\PostCollection;
+use Webong\Cogent\Tests\Fixtures\Collections\PostCollection;
 
 /**
  * @property int $id

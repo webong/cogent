@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use Webong\Fluent\Support\BatchCountResult;
+use Webong\Cogent\Support\BatchCountResult;
 use Illuminate\Support\Collection;
 
 it('returns counts and truncated flags by integer or string key', function (): void {

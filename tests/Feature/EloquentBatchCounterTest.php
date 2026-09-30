@@ -3,11 +3,11 @@
 declare(strict_types=1);
 
 use Illuminate\Database\Eloquent\Builder;
-use Webong\Fluent\Support\BatchCountResult;
-use Webong\Fluent\Support\EloquentBatchCounter;
-use Webong\Fluent\Tests\Fixtures\Models\Comment;
-use Webong\Fluent\Tests\Fixtures\Models\Post;
-use Webong\Fluent\Tests\Fixtures\Models\User;
+use Webong\Cogent\Support\BatchCountResult;
+use Webong\Cogent\Support\EloquentBatchCounter;
+use Webong\Cogent\Tests\Fixtures\Models\Comment;
+use Webong\Cogent\Tests\Fixtures\Models\Post;
+use Webong\Cogent\Tests\Fixtures\Models\User;
 
 it('returns an empty result without querying when there are no parent ids', function (): void {
     $queries = $this->countQueries();

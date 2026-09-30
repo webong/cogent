@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Webong\Fluent\Tests\Fixtures\Collections;
+namespace Webong\Cogent\Tests\Fixtures\Collections;
 
 use Illuminate\Database\Eloquent\Collection;
-use Webong\Fluent\Tests\Fixtures\Models\Comment;
+use Webong\Cogent\Tests\Fixtures\Models\Comment;
 
 /**
  * @template TModel of Comment

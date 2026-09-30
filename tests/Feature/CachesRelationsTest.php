@@ -3,14 +3,14 @@
 declare(strict_types=1);
 
 use Illuminate\Support\Facades\Cache;
-use Webong\Fluent\Support\CachedRelationAttributeStore;
-use Webong\Fluent\Tests\Fixtures\Collections\CachedPostCollection;
-use Webong\Fluent\Tests\Fixtures\Collections\CommentCollection;
-use Webong\Fluent\Tests\Fixtures\Models\CachedPost;
-use Webong\Fluent\Tests\Fixtures\Models\Comment;
-use Webong\Fluent\Tests\Fixtures\Models\LegacyCachedPost;
-use Webong\Fluent\Tests\Fixtures\Models\Tag;
-use Webong\Fluent\Tests\Fixtures\Models\User;
+use Webong\Cogent\Support\CachedRelationAttributeStore;
+use Webong\Cogent\Tests\Fixtures\Collections\CachedPostCollection;
+use Webong\Cogent\Tests\Fixtures\Collections\CommentCollection;
+use Webong\Cogent\Tests\Fixtures\Models\CachedPost;
+use Webong\Cogent\Tests\Fixtures\Models\Comment;
+use Webong\Cogent\Tests\Fixtures\Models\LegacyCachedPost;
+use Webong\Cogent\Tests\Fixtures\Models\Tag;
+use Webong\Cogent\Tests\Fixtures\Models\User;
 
 it('loads cached relations for every model in one pass', function (): void {
     $author = User::query()->create(['name' => 'Ada']);
@@ -40,8 +40,8 @@ it('caches the attributes of loaded relations', function (): void {
 
     CachedPost::query()->whereKey($posts->modelKeys())->get()->loadCached('author');
 
-    expect(Cache::get('fluent-test:author:'.$author->id))->toEqual($author->getAttributes())
-        ->and(Cache::get('fluent-test:comments:'.$posts->first()->id))->toBeNull();
+    expect(Cache::get('cogent-test:author:'.$author->id))->toEqual($author->getAttributes())
+        ->and(Cache::get('cogent-test:comments:'.$posts->first()->id))->toBeNull();
 });
 
 it('keeps relations that are already loaded when loading missing cached relations', function (): void {
@@ -131,7 +131,7 @@ it('reads the cached configuration off the model', function (): void {
         ->and($definition->relatedKey)->toBe('id')
         ->and($definition->many)->toBeFalse()
         ->and($definition->ttl)->toBe(60)
-        ->and($definition->cacheKeyFor(7))->toBe('fluent-test:author:7')
+        ->and($definition->cacheKeyFor(7))->toBe('cogent-test:author:7')
         ->and((new CachedPost)->cachedDefinitionFor('uncachedComments'))->toBeNull();
 });
 
@@ -152,7 +152,7 @@ it('falls back to a cache key built from the model and the relation', function (
     createPosts($author, 1);
 
     expect((new User)->cachedDefinition('posts')->cacheKeyFor($author->id))
-        ->toBe('fluent:'.User::class.':posts:'.$author->id);
+        ->toBe('cogent:'.User::class.':posts:'.$author->id);
 });
 
 it('caches a has one relation as a single model', function (): void {
@@ -219,14 +219,14 @@ it('forgets the cached author when that author is saved', function (): void {
 
     CachedPost::query()->whereKey($posts->modelKeys())->get()->loadCached('author');
 
-    expect(Cache::has('fluent-test:author:'.$author->id))->toBeTrue();
+    expect(Cache::has('cogent-test:author:'.$author->id))->toBeTrue();
 
     $author->update(['name' => 'Grace']);
 
     $collection = CachedPost::query()->whereKey($posts->modelKeys())->get();
 
     expect($collection->relationCached('author'))->toBeFalse()
-        ->and(app(CachedRelationAttributeStore::class)->has('fluent-test:author:'.$author->id))->toBeFalse();
+        ->and(app(CachedRelationAttributeStore::class)->has('cogent-test:author:'.$author->id))->toBeFalse();
 
     $collection->loadCached('author');
 
@@ -241,7 +241,7 @@ it('forgets the cached collection when one of its rows changes', function (): vo
 
     CachedPost::query()->whereKey($post->getKey())->get()->loadCached('comments');
 
-    expect(Cache::has('fluent-test:comments:'.$post->id))->toBeTrue();
+    expect(Cache::has('cogent-test:comments:'.$post->id))->toBeTrue();
 
     $comments->first()->update(['body' => 'Edited']);
 
@@ -290,7 +290,7 @@ it('caches a relation declared with the helper the same as the one declared on t
         ->and($collection->first()->getRelation('commentsThroughTheHelper'))
         ->toBeInstanceOf(CommentCollection::class)
         ->and($collection->relationCached('commentsThroughTheHelper', $post->id))->toBeTrue()
-        ->and(Cache::has('fluent-test:helper-comments:'.$post->id))->toBeTrue();
+        ->and(Cache::has('cogent-test:helper-comments:'.$post->id))->toBeTrue();
 });
 
 it('still reads caches declared on the collection itself', function (): void {
@@ -309,7 +309,7 @@ it('still reads caches declared on the collection itself', function (): void {
         ->and($collection->first()->getRelation('author')->name)->toBe('Ada')
         ->and($collection->first()->getRelation('comments'))->toHaveCount(1)
         ->and($collection->relationCached('author', $author->id))->toBeTrue()
-        ->and(Cache::has('fluent-legacy:author:'.$author->id))->toBeTrue();
+        ->and(Cache::has('cogent-legacy:author:'.$author->id))->toBeTrue();
 
     $author->update(['name' => 'Grace']);
 

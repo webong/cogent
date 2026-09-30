@@ -3,12 +3,12 @@
 declare(strict_types=1);
 
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
-use Webong\Fluent\Tests\Fixtures\Collections\ImageCollection;
-use Webong\Fluent\Tests\Fixtures\Collections\PostCollection;
-use Webong\Fluent\Tests\Fixtures\Models\Image;
-use Webong\Fluent\Tests\Fixtures\Models\Post;
-use Webong\Fluent\Tests\Fixtures\Models\Tag;
-use Webong\Fluent\Tests\Fixtures\Models\User;
+use Webong\Cogent\Tests\Fixtures\Collections\ImageCollection;
+use Webong\Cogent\Tests\Fixtures\Collections\PostCollection;
+use Webong\Cogent\Tests\Fixtures\Models\Image;
+use Webong\Cogent\Tests\Fixtures\Models\Post;
+use Webong\Cogent\Tests\Fixtures\Models\Tag;
+use Webong\Cogent\Tests\Fixtures\Models\User;
 
 it('collects models reachable through already loaded relations', function (): void {
     $author = User::query()->create(['name' => 'Ada']);
@@ -162,7 +162,7 @@ it('includes support collections of related models', function (): void {
     $graph = $collection->include('comments');
 
     expect($graph)->toHaveCount(3)
-        ->and($graph->last())->toBeInstanceOf(\Webong\Fluent\Tests\Fixtures\Models\Comment::class);
+        ->and($graph->last())->toBeInstanceOf(\Webong\Cogent\Tests\Fixtures\Models\Comment::class);
 });
 
 it('ignores relations that are not loaded at all', function (): void {

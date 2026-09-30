@@ -3,12 +3,12 @@
 declare(strict_types=1);
 
 use Illuminate\Database\Eloquent\Builder;
-use Webong\Fluent\Support\BatchCountResult;
-use Webong\Fluent\Tests\Fixtures\Collections\PostCollection;
-use Webong\Fluent\Tests\Fixtures\Models\Comment;
-use Webong\Fluent\Tests\Fixtures\Models\Post;
-use Webong\Fluent\Tests\Fixtures\Models\Tag;
-use Webong\Fluent\Tests\Fixtures\Models\User;
+use Webong\Cogent\Support\BatchCountResult;
+use Webong\Cogent\Tests\Fixtures\Collections\PostCollection;
+use Webong\Cogent\Tests\Fixtures\Models\Comment;
+use Webong\Cogent\Tests\Fixtures\Models\Post;
+use Webong\Cogent\Tests\Fixtures\Models\Tag;
+use Webong\Cogent\Tests\Fixtures\Models\User;
 
 it('batch loads an aggregate count onto every model with one grouped query', function (): void {
     $author = User::query()->create(['name' => 'Ada']);

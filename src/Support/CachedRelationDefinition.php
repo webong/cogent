@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Webong\Fluent\Support;
+namespace Webong\Cogent\Support;
 
 use Closure;
 use DateInterval;
@@ -11,7 +11,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 use InvalidArgumentException;
-use Webong\Fluent\Contracts\CachedRelationResolver;
+use Webong\Cogent\Contracts\CachedRelationResolver;
 
 /**
  * Everything needed to hydrate and to invalidate one cached relation.
@@ -53,7 +53,7 @@ final readonly class CachedRelationDefinition
             return ($this->key)($localValue);
         }
 
-        return strtr($this->key ?? sprintf('fluent:%s:%s:{value}', $this->modelClass ?? 'model', $this->relation), [
+        return strtr($this->key ?? sprintf('cogent:%s:%s:{value}', $this->modelClass ?? 'model', $this->relation), [
             '{model}' => $this->modelClass ?? 'model',
             '{relation}' => $this->relation,
             '{value}' => (string) $localValue,

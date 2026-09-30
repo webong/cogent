@@ -1,5 +1,5 @@
 {
-    "name": "webong/fluent",
+    "name": "webong/cogent",
     "type": "library",
     "description": "Laravel Eloquent collection extensions: plug, include and count relations without extra queries.",
     "keywords": [
@@ -32,7 +32,7 @@
     },
     "autoload": {
         "psr-4": {
-            "Webong\\Fluent\\": "src/"
+            "Webong\\Cogent\\": "src/"
         },
         "files": [
             "src/helpers.php"
@@ -40,7 +40,7 @@
     },
     "autoload-dev": {
         "psr-4": {
-            "Webong\\Fluent\\Tests\\": "tests/"
+            "Webong\\Cogent\\Tests\\": "tests/"
         }
     },
     "scripts": {
@@ -57,7 +57,7 @@
     "extra": {
         "laravel": {
             "providers": [
-                "Webong\\Fluent\\FluentServiceProvider"
+                "Webong\\Cogent\\CogentServiceProvider"
             ]
         }
     },

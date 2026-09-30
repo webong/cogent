@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Webong\Fluent\Concerns;
+namespace Webong\Cogent\Concerns;
 
 use Illuminate\Container\Container;
 use InvalidArgumentException;
-use Webong\Fluent\Support\CachedRelationDefinition;
-use Webong\Fluent\Support\CachedRelationRegistry;
+use Webong\Cogent\Support\CachedRelationDefinition;
+use Webong\Cogent\Support\CachedRelationRegistry;
 
 /**
  * Marks a model as declaring cacheable relations.

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Webong\Fluent\Support;
+namespace Webong\Cogent\Support;
 
 /**
  * Carries the overrides a relation method passed to cached() from the moment the

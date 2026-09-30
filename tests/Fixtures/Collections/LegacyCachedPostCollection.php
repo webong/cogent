@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-namespace Webong\Fluent\Tests\Fixtures\Collections;
+namespace Webong\Cogent\Tests\Fixtures\Collections;
 
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Collection as SupportCollection;
-use Webong\Fluent\Concerns\CachesRelations;
-use Webong\Fluent\Concerns\PlugsRelations;
-use Webong\Fluent\Tests\Fixtures\Models\Comment;
-use Webong\Fluent\Tests\Fixtures\Models\LegacyCachedPost;
-use Webong\Fluent\Tests\Fixtures\Models\User;
+use Webong\Cogent\Concerns\CachesRelations;
+use Webong\Cogent\Concerns\PlugsRelations;
+use Webong\Cogent\Tests\Fixtures\Models\Comment;
+use Webong\Cogent\Tests\Fixtures\Models\LegacyCachedPost;
+use Webong\Cogent\Tests\Fixtures\Models\User;
 
 /**
  * @template TModel of LegacyCachedPost
@@ -37,7 +37,7 @@ final class LegacyCachedPostCollection extends Collection
                     ->whereIn('id', $ids)
                     ->get()
                     ->keyBy('id'),
-                'cacheKey' => static fn (mixed $id): string => 'fluent-legacy:author:'.$id,
+                'cacheKey' => static fn (mixed $id): string => 'cogent-legacy:author:'.$id,
                 'ttl' => 60,
             ],
             'comments' => [
@@ -47,7 +47,7 @@ final class LegacyCachedPostCollection extends Collection
                     ->whereIn('post_id', $ids)
                     ->get()
                     ->groupBy('post_id'),
-                'cacheKey' => static fn (mixed $id): string => 'fluent-legacy:comments:'.$id,
+                'cacheKey' => static fn (mixed $id): string => 'cogent-legacy:comments:'.$id,
                 'ttl' => 60,
                 'collection' => true,
                 'collectionClass' => CommentCollection::class,

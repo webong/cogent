@@ -3,9 +3,9 @@
 declare(strict_types=1);
 
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
-use Webong\Fluent\Tests\Fixtures\Models\Comment;
-use Webong\Fluent\Tests\Fixtures\Models\Post;
-use Webong\Fluent\Tests\Fixtures\Models\User;
+use Webong\Cogent\Tests\Fixtures\Models\Comment;
+use Webong\Cogent\Tests\Fixtures\Models\Post;
+use Webong\Cogent\Tests\Fixtures\Models\User;
 
 it('returns the models reachable through an already loaded relation path', function (): void {
     $author = User::query()->create(['name' => 'Ada']);

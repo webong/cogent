@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Webong\Fluent\Concerns;
+namespace Webong\Cogent\Concerns;
 
 use Closure;
 use Illuminate\Container\Container;
@@ -13,8 +13,8 @@ use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
-use Webong\Fluent\Support\BatchCountResult;
-use Webong\Fluent\Support\EloquentBatchCounter;
+use Webong\Cogent\Support\BatchCountResult;
+use Webong\Cogent\Support\EloquentBatchCounter;
 
 /**
  * Batch-loads counts onto every model in the collection with a single grouped query.

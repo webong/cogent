@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Webong\Fluent\Concerns;
+namespace Webong\Cogent\Concerns;
 
 use Closure;
 use DateTimeInterface;
@@ -12,7 +12,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection as SupportCollection;
 use Illuminate\Support\Facades\Cache;
 use InvalidArgumentException;
-use Webong\Fluent\Support\CachedRelationAttributeStore;
+use Webong\Cogent\Support\CachedRelationAttributeStore;
 
 trait PlugsRelations
 {

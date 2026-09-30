@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Webong\Fluent\Concerns;
+namespace Webong\Cogent\Concerns;
 
 use Illuminate\Database\Eloquent\Model;
 

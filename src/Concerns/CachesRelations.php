@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Webong\Fluent\Concerns;
+namespace Webong\Cogent\Concerns;
 
 use Closure;
 use DateInterval;
@@ -14,8 +14,8 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use InvalidArgumentException;
 use LogicException;
-use Webong\Fluent\Support\CachedRelationDefinition;
-use Webong\Fluent\Support\CachedRelationRegistry;
+use Webong\Cogent\Support\CachedRelationDefinition;
+use Webong\Cogent\Support\CachedRelationRegistry;
 
 /**
  * Hydrate relations from the cache, using the declaration the model makes for

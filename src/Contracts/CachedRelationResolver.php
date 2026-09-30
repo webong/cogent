@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Webong\Fluent\Contracts;
+namespace Webong\Cogent\Contracts;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;

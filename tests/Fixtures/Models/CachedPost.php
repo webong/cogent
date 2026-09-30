@@ -2,18 +2,18 @@
 
 declare(strict_types=1);
 
-namespace Webong\Fluent\Tests\Fixtures\Models;
+namespace Webong\Cogent\Tests\Fixtures\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
-use Webong\Fluent\Attributes\CachedRelation;
-use Webong\Fluent\Concerns\DefinesCachedRelations;
-use Webong\Fluent\Tests\Fixtures\Collections\CachedPostCollection;
-use Webong\Fluent\Tests\Fixtures\Collections\CommentCollection;
+use Webong\Cogent\Attributes\CachedRelation;
+use Webong\Cogent\Concerns\DefinesCachedRelations;
+use Webong\Cogent\Tests\Fixtures\Collections\CachedPostCollection;
+use Webong\Cogent\Tests\Fixtures\Collections\CommentCollection;
 
-use function Webong\Fluent\cached;
+use function Webong\Cogent\cached;
 
 /**
  * @property int $id
@@ -42,7 +42,7 @@ class CachedPost extends Model
         return new CachedPostCollection($models);
     }
 
-    #[CachedRelation(ttl: 60, key: 'fluent-test:author:{value}')]
+    #[CachedRelation(ttl: 60, key: 'cogent-test:author:{value}')]
     public function author(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
@@ -52,7 +52,7 @@ class CachedPost extends Model
     {
         return $this->hasMany(Comment::class, 'post_id')->cached(
             ttl: 60,
-            key: 'fluent-test:comments:{value}',
+            key: 'cogent-test:comments:{value}',
             collection: CommentCollection::class,
         );
     }
@@ -68,7 +68,7 @@ class CachedPost extends Model
         return cached(
             relation: $this->hasMany(Comment::class, 'post_id'),
             ttl: 60,
-            key: 'fluent-test:helper-comments:{value}',
+            key: 'cogent-test:helper-comments:{value}',
             collection: CommentCollection::class,
         );
     }

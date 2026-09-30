@@ -1,13 +1,13 @@
-# Fluent
+# Cogent
 
-Fluent Eloquent collection extensions for Laravel. Hydrate, share, and count relations on
+Cogent Eloquent collection extensions for Laravel. Hydrate, share, and count relations on
 collections you already have in memory, without the extra queries Laravel's eager loading forces
 on you.
 
 ```php
 use Illuminate\Database\Eloquent\Collection;
-use Webong\Fluent\Concerns\IncludesRelations;
-use Webong\Fluent\Concerns\PlugsRelations;
+use Webong\Cogent\Concerns\IncludesRelations;
+use Webong\Cogent\Concerns\PlugsRelations;
 
 final class ConversationCollection extends Collection
 {
@@ -19,7 +19,7 @@ final class ConversationCollection extends Collection
 ## Installation
 
 ```bash
-composer require webong/fluent
+composer require webong/cogent
 ```
 
 The service provider is auto-discovered. It registers two scoped services, so nothing else is
@@ -70,14 +70,14 @@ $conversations->shareRelation('channel');
 
 ## Cached relations
 
-Declare a relation as cacheable on the model, right where the relation itself is defined. Fluent reads
+Declare a relation as cacheable on the model, right where the relation itself is defined. Cogent reads
 the declaration off the relation method and derives everything else from the Eloquent relation: which
 key it caches under, how a miss is resolved and how many models come back. A warm cache costs no
 queries at all.
 
 ```php
-use Webong\Fluent\Attributes\CachedRelation;
-use Webong\Fluent\Concerns\DefinesCachedRelations;
+use Webong\Cogent\Attributes\CachedRelation;
+use Webong\Cogent\Concerns\DefinesCachedRelations;
 
 final class Post extends Model
 {
@@ -116,7 +116,7 @@ A `cached()` free function exists for the times a relation is built before it is
 the relation as its first argument and behaves the same.
 
 ```php
-use function Webong\Fluent\cached;
+use function Webong\Cogent\cached;
 
 public function tags(): MorphMany
 {
@@ -156,12 +156,12 @@ final class PostCollection extends Collection
 | `BelongsToMany` | the parent key  | many        |
 | `MorphTo`       | not cacheable   |             |
 
-Keys follow `fluent:{model}:{relation}:{value}` unless `key` says otherwise, and any template
+Keys follow `cogent:{model}:{relation}:{value}` unless `key` says otherwise, and any template
 accepts `{model}`, `{relation}` and `{value}`. Morph relations keep their type constraint, so rows
 of another type can never leak into a cache. `BelongsToMany` needs the column on the pivot to be
 resolvable, so pass `foreignKey` or a `resolver` to `cached()`.
 
-A resolver receives the query Fluent already built for the relation and the keys that missed, and
+A resolver receives the query Cogent already built for the relation and the keys that missed, and
 returns the models keyed by the value they belong to:
 
 ```php
@@ -192,7 +192,7 @@ for it; add it to your `phpstan.neon` when you analyse models that use it.
 ```neon
 services:
     -
-        class: Webong\Fluent\PhpStan\CachedRelationMacroExtension
+        class: Webong\Cogent\PhpStan\CachedRelationMacroExtension
         tags:
             - phpstan.broker.methodsClassReflectionExtension
 ```
@@ -222,10 +222,10 @@ $definition->localKey;               // 'id'
 $definition->relatedClass;           // Comment::class
 $definition->relatedForeignKey;      // 'post_id'
 $definition->ttl;                    // 600
-$definition->cacheKeyFor($post->id); // 'fluent:App\Models\Post:comments:1'
+$definition->cacheKeyFor($post->id); // 'cogent:App\Models\Post:comments:1'
 ```
 
-A request-scoped store, registered as `Webong\Fluent\Support\CachedRelationAttributeStore`, keeps
+A request-scoped store, registered as `Webong\Cogent\Support\CachedRelationAttributeStore`, keeps
 every key resolved during the request in memory, so repeated calls never touch the cache twice.
 Forget a key after you change the underlying row:
 
@@ -270,7 +270,7 @@ $conversations->batchAggregateCount(
 
 When `cap` is set, the count is clamped and the truncation flag is merged into
 `truncatedAttribute[attribute]`, so several capped counts can share one attribute. The query runs
-through `Webong\Fluent\Support\EloquentBatchCounter`, which never mutates the query you hand it and
+through `Webong\Cogent\Support\EloquentBatchCounter`, which never mutates the query you hand it and
 returns a `BatchCountResult` for direct inspection.
 
 ## Testing

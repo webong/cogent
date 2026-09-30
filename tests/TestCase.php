@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Webong\Fluent\Tests;
+namespace Webong\Cogent\Tests;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Orchestra\Testbench\TestCase as Orchestra;
-use Webong\Fluent\FluentServiceProvider;
+use Webong\Cogent\CogentServiceProvider;
 
 use function Orchestra\Testbench\default_skeleton_path;
 
@@ -32,7 +32,7 @@ abstract class TestCase extends Orchestra
      */
     protected function getPackageProviders($app): array
     {
-        return [FluentServiceProvider::class];
+        return [CogentServiceProvider::class];
     }
 
     /**

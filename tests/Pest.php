@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Collection as SupportCollection;
-use Webong\Fluent\Tests\Fixtures\Collections\PostCollection;
-use Webong\Fluent\Tests\Fixtures\Models\Comment;
-use Webong\Fluent\Tests\Fixtures\Models\Post;
-use Webong\Fluent\Tests\Fixtures\Models\User;
-use Webong\Fluent\Tests\TestCase;
+use Webong\Cogent\Tests\Fixtures\Collections\PostCollection;
+use Webong\Cogent\Tests\Fixtures\Models\Comment;
+use Webong\Cogent\Tests\Fixtures\Models\Post;
+use Webong\Cogent\Tests\Fixtures\Models\User;
+use Webong\Cogent\Tests\TestCase;
 
 uses(TestCase::class)->in('Feature', 'Unit');
 

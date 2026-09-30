@@ -2,16 +2,16 @@
 
 declare(strict_types=1);
 
-namespace Webong\Fluent;
+namespace Webong\Cogent;
 
 use Illuminate\Contracts\Container\Container;
 use Illuminate\Support\ServiceProvider;
-use Webong\Fluent\Support\CachedRelationAttributeStore;
-use Webong\Fluent\Support\CachedRelationMacro;
-use Webong\Fluent\Support\CachedRelationRegistry;
-use Webong\Fluent\Support\EloquentBatchCounter;
+use Webong\Cogent\Support\CachedRelationAttributeStore;
+use Webong\Cogent\Support\CachedRelationMacro;
+use Webong\Cogent\Support\CachedRelationRegistry;
+use Webong\Cogent\Support\EloquentBatchCounter;
 
-class FluentServiceProvider extends ServiceProvider
+class CogentServiceProvider extends ServiceProvider
 {
     /**
      * Register services.

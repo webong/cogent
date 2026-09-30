@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Webong\Fluent\Tests\Fixtures\Models;
+namespace Webong\Cogent\Tests\Fixtures\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
-use Webong\Fluent\Tests\Fixtures\Collections\ImageCollection;
+use Webong\Cogent\Tests\Fixtures\Collections\ImageCollection;
 
 /**
  * @property int $id

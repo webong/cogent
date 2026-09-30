@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Webong\Fluent\Attributes;
+namespace Webong\Cogent\Attributes;
 
 use Attribute;
 use DateInterval;
@@ -20,7 +20,7 @@ final class CachedRelation
     /**
      * @param  int|DateTimeInterface|DateInterval|null  $ttl  Null keeps the default of 86400 seconds.
      * @param  string|null  $key  A key template accepting {model}, {relation} and {value}.
-     * @param  class-string<\Webong\Fluent\Contracts\CachedRelationResolver>|null  $resolver
+     * @param  class-string<\Webong\Cogent\Contracts\CachedRelationResolver>|null  $resolver
      * @param  class-string<\Illuminate\Support\Collection>|null  $collection
      */
     public function __construct(

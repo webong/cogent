@@ -3,7 +3,7 @@ includes:
 
 services:
     -
-        class: Webong\Fluent\PhpStan\CachedRelationMacroExtension
+        class: Webong\Cogent\PhpStan\CachedRelationMacroExtension
         tags:
             - phpstan.broker.methodsClassReflectionExtension
 

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Webong\Fluent\PhpStan;
+namespace Webong\Cogent\PhpStan;
 
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Larastan\Larastan\Methods\Macro;
@@ -12,7 +12,7 @@ use PHPStan\Reflection\MethodsClassReflectionExtension;
 use PHPStan\Type\ClosureType;
 use PHPStan\Type\ClosureTypeFactory;
 use PHPStan\Type\ObjectType;
-use Webong\Fluent\Support\CachedRelationMacro;
+use Webong\Cogent\Support\CachedRelationMacro;
 
 /**
  * Teaches PHPStan about the cached() macro that CachedRelationMacro adds to

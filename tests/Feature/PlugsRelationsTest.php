@@ -6,11 +6,11 @@ use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Collection as SupportCollection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
-use Webong\Fluent\Tests\Fixtures\Collections\CommentCollection;
-use Webong\Fluent\Tests\Fixtures\Models\Comment;
-use Webong\Fluent\Tests\Fixtures\Models\Image;
-use Webong\Fluent\Tests\Fixtures\Models\Post;
-use Webong\Fluent\Tests\Fixtures\Models\User;
+use Webong\Cogent\Tests\Fixtures\Collections\CommentCollection;
+use Webong\Cogent\Tests\Fixtures\Models\Comment;
+use Webong\Cogent\Tests\Fixtures\Models\Image;
+use Webong\Cogent\Tests\Fixtures\Models\Post;
+use Webong\Cogent\Tests\Fixtures\Models\User;
 
 it('plugs a relation onto every model in the collection', function (): void {
     $author = User::query()->create(['name' => 'Ada']);
@@ -177,21 +177,21 @@ it('hydrates a cached single relation once and shares it across the collection',
 
             return User::query()->whereIn('id', $ids)->get()->keyBy('id');
         },
-        cacheKey: static fn (mixed $id): string => 'fluent-test:plug-cached:author:'.$id,
+        cacheKey: static fn (mixed $id): string => 'cogent-test:plug-cached:author:'.$id,
         ttl: 60,
     );
 
     expect($resolutions)->toBe(1)
         ->and($collection->first()->getRelation('author')->name)->toBe('Ada')
         ->and($collection->last()->getRelation('author'))->toBe($collection->first()->getRelation('author'))
-        ->and(Cache::get('fluent-test:plug-cached:author:'.$author->id))->toEqual($author->getAttributes());
+        ->and(Cache::get('cogent-test:plug-cached:author:'.$author->id))->toEqual($author->getAttributes());
 });
 
 it('reads cached relations from the store without resolving them again', function (): void {
     $author = User::query()->create(['name' => 'Ada']);
     $posts = createPosts($author, 2);
 
-    Cache::put('fluent-test:plug-cached-warm:'.$author->id, $author->getAttributes(), 60);
+    Cache::put('cogent-test:plug-cached-warm:'.$author->id, $author->getAttributes(), 60);
 
     $resolutions = 0;
 
@@ -204,7 +204,7 @@ it('reads cached relations from the store without resolving them again', functio
 
             return User::query()->whereIn('id', $ids)->get()->keyBy('id');
         },
-        cacheKey: static fn (mixed $id): string => 'fluent-test:plug-cached-warm:'.$id,
+        cacheKey: static fn (mixed $id): string => 'cogent-test:plug-cached-warm:'.$id,
         ttl: 60,
     );
 
@@ -227,7 +227,7 @@ it('leaves keys without a cached record unhydrated', function (): void {
             ->whereIn('id', $ids)
             ->get()
             ->keyBy('id'),
-        cacheKey: static fn (mixed $id): string => 'fluent-test:plug-cached-missing:author:'.$id,
+        cacheKey: static fn (mixed $id): string => 'cogent-test:plug-cached-missing:author:'.$id,
         ttl: 60,
     );
 
@@ -252,7 +252,7 @@ it('only fills relations that are not loaded yet when plugging cached missing re
             ->whereIn('id', $ids)
             ->get()
             ->keyBy('id'),
-        cacheKey: static fn (mixed $id): string => 'fluent-test:plug-cached-missing-only:'.$id,
+        cacheKey: static fn (mixed $id): string => 'cogent-test:plug-cached-missing-only:'.$id,
         ttl: 60,
     );
 
@@ -274,7 +274,7 @@ it('hydrates cached collection relations and caches empty results', function ():
             ->whereIn('post_id', $ids)
             ->get()
             ->groupBy('post_id'),
-        cacheKey: static fn (mixed $id): string => 'fluent-test:plug-cached-collection:'.$id,
+        cacheKey: static fn (mixed $id): string => 'cogent-test:plug-cached-collection:'.$id,
         ttl: 60,
         collectionClass: CommentCollection::class,
     );
@@ -283,7 +283,7 @@ it('hydrates cached collection relations and caches empty results', function ():
         ->and($collection->first()->getRelation('comments'))->toHaveCount(2)
         ->and($collection->last()->getRelation('comments'))->toBeInstanceOf(CommentCollection::class)
         ->and($collection->last()->getRelation('comments')->isEmpty())->toBeTrue()
-        ->and(Cache::get('fluent-test:plug-cached-collection:'.$posts->last()->id))->toBe([]);
+        ->and(Cache::get('cogent-test:plug-cached-collection:'.$posts->last()->id))->toBe([]);
 });
 
 it('does not touch the database when there is nothing to hydrate', function (): void {
@@ -301,7 +301,7 @@ it('does not touch the database when there is nothing to hydrate', function (): 
             ->whereIn('id', $ids)
             ->get()
             ->keyBy('id'),
-        cacheKey: static fn (mixed $id): string => 'fluent-test:never:'.$id,
+        cacheKey: static fn (mixed $id): string => 'cogent-test:never:'.$id,
         ttl: 60,
     );
 
@@ -313,7 +313,7 @@ it('does not touch the database when there is nothing to hydrate', function (): 
             ->whereIn('post_id', $ids)
             ->get()
             ->groupBy('post_id'),
-        cacheKey: static fn (mixed $id): string => 'fluent-test:never-collection:'.$id,
+        cacheKey: static fn (mixed $id): string => 'cogent-test:never-collection:'.$id,
         ttl: 60,
         collectionClass: CommentCollection::class,
     );

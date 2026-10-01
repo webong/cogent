@@ -121,9 +121,9 @@ trait BatchesRelations
         /** @var Model $first */
         $first = $this->first();
 
-        /** @var list<int|string> $ids */
         $parentKey ??= $first->getKeyName();
 
+        /** @var list<int|string> $ids */
         $ids = $this->pluck($parentKey)
             ->filter(static fn (mixed $id): bool => $id !== null)
             ->uniqueStrict()

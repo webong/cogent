@@ -56,7 +56,7 @@ final class EloquentBatchCounter
                 'sql' => $query->toSql(),
                 'bindings' => $query->getBindings(),
                 'group_by' => $groupBy,
-                'parent_ids' => array_values($parentIds),
+                'parent_ids' => $parentIds,
                 'cap' => $cap,
                 'context' => $cacheContext,
             ];

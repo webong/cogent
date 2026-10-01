@@ -99,6 +99,111 @@ it('applies constraints to the grouped count query', function (): void {
     expect($collection->first()->getAttribute('first_comments_count'))->toBe(1);
 });
 
+it('uses a custom parent key when selecting IDs and applying counts', function (): void {
+    $ada = User::query()->create(['name' => 'Ada']);
+    $grace = User::query()->create(['name' => 'Grace']);
+    createPosts($ada, 1);
+    createPosts($grace, 1);
+
+    $collection = Post::query()->select('user_id')->orderBy('user_id')->get();
+
+    $collection->batchAggregateCount(
+        attribute: 'posts_count',
+        query: Post::query(),
+        groupBy: 'user_id',
+        cap: null,
+        parentKey: 'user_id',
+    );
+
+    expect($collection->map(fn (Post $post): mixed => $post->getAttribute('posts_count'))->all())
+        ->toBe([1, 1])
+        ->and($collection->every(fn (Post $post): bool => $post->getKey() === null))->toBeTrue();
+});
+
+it('caches aggregate counts and reapplies a warm result to every collection item', function (): void {
+    $author = User::query()->create(['name' => 'Ada']);
+    $posts = createPosts($author, 1);
+    createComments($posts->first(), 3);
+    $collection = Post::query()->whereKey($posts->modelKeys())->get();
+    $expiry = now()->addMinutes(5);
+    $queries = $this->countQueries();
+
+    foreach ([1, 2] as $call) {
+        $collection->batchAggregateCount(
+            attribute: 'comments_count',
+            query: Comment::query(),
+            groupBy: 'post_id',
+            cap: null,
+            cacheKey: 'test:comments',
+            ttl: $expiry,
+        );
+    }
+
+    expect($queries())->toBe(1)
+        ->and($collection->first()->getAttribute('comments_count'))->toBe(3);
+});
+
+it('includes parent ID sets in aggregate count cache identity', function (): void {
+    $author = User::query()->create(['name' => 'Ada']);
+    $posts = createPosts($author, 2);
+    createComments($posts->get(0), 1);
+    createComments($posts->get(1), 3);
+    $first = Post::query()->whereKey($posts->get(0)->id)->get();
+    $second = Post::query()->whereKey($posts->get(1)->id)->get();
+    $queries = $this->countQueries();
+
+    foreach ([$first, $second] as $collection) {
+        $collection->batchAggregateCount(
+            attribute: 'comments_count',
+            query: Comment::query(),
+            groupBy: 'post_id',
+            cap: null,
+            cacheKey: 'test:parent-ids',
+            ttl: now()->addMinutes(5),
+        );
+    }
+
+    expect($queries())->toBe(2)
+        ->and($first->first()->getAttribute('comments_count'))->toBe(1)
+        ->and($second->first()->getAttribute('comments_count'))->toBe(3);
+});
+
+it('includes query constraints in aggregate count cache identity', function (): void {
+    $author = User::query()->create(['name' => 'Ada']);
+    $posts = createPosts($author, 1);
+    createComments($posts->first(), 3);
+    $collection = Post::query()->whereKey($posts->modelKeys())->get();
+    $queries = $this->countQueries();
+
+    $countFirstComment = static fn (Builder $query): Builder => $query->where('body', 'Comment #1');
+    $countOtherComments = static fn (Builder $query): Builder => $query->where('body', '!=', 'Comment #1');
+
+    $collection->batchAggregateCount(
+        attribute: 'matching_comments_count',
+        query: Comment::query(),
+        groupBy: 'post_id',
+        cap: null,
+        constraints: $countFirstComment,
+        cacheKey: 'test:constrained-comments',
+        ttl: now()->addMinutes(5),
+    );
+    $firstCount = $collection->first()->getAttribute('matching_comments_count');
+
+    $collection->batchAggregateCount(
+        attribute: 'matching_comments_count',
+        query: Comment::query(),
+        groupBy: 'post_id',
+        cap: null,
+        constraints: $countOtherComments,
+        cacheKey: 'test:constrained-comments',
+        ttl: now()->addMinutes(5),
+    );
+
+    expect($queries())->toBe(2)
+        ->and($firstCount)->toBe(1)
+        ->and($collection->first()->getAttribute('matching_comments_count'))->toBe(2);
+});
+
 it('zeroes counts for models without a key and skips the query', function (): void {
     $collection = new PostCollection([new Post(['title' => 'Unsaved post'])]);
 

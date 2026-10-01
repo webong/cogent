@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Webong\Cogent\Concerns;
 
 use Closure;
+use DateTimeInterface;
 use Illuminate\Container\Container;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -96,6 +97,10 @@ trait BatchesRelations
         ?int $cap = 100,
         ?Closure $constraints = null,
         ?string $truncatedAttribute = null,
+        ?string $parentKey = null,
+        ?string $cacheKey = null,
+        int|DateTimeInterface|null $ttl = null,
+        ?string $cacheContext = null,
     ): BatchCountResult {
         if ($cap !== null && $cap < 0) {
             throw new InvalidArgumentException('$countCap must be null or a non-negative integer.');
@@ -105,11 +110,21 @@ trait BatchesRelations
             return BatchCountResult::empty();
         }
 
+        if (($cacheKey === null) !== ($ttl === null)) {
+            throw new InvalidArgumentException('Both $cacheKey and $ttl must be provided to cache aggregate counts.');
+        }
+
+        if ($cacheContext !== null && $cacheKey === null) {
+            throw new InvalidArgumentException('$cacheContext can only be used when aggregate count caching is enabled.');
+        }
+
         /** @var Model $first */
         $first = $this->first();
 
         /** @var list<int|string> $ids */
-        $ids = $this->pluck($first->getKeyName())
+        $parentKey ??= $first->getKeyName();
+
+        $ids = $this->pluck($parentKey)
             ->filter(static fn (mixed $id): bool => $id !== null)
             ->uniqueStrict()
             ->values()
@@ -117,7 +132,7 @@ trait BatchesRelations
 
         if ($ids === []) {
             $result = BatchCountResult::empty();
-            $this->applyBatchCountResult($attribute, $result, $cap, $truncatedAttribute);
+            $this->applyBatchCountResult($attribute, $result, $cap, $parentKey, $truncatedAttribute);
 
             return $result;
         }
@@ -128,9 +143,12 @@ trait BatchesRelations
             parentIds: $ids,
             cap: $cap,
             constraints: $constraints,
+            cacheKey: $cacheKey,
+            ttl: $ttl,
+            cacheContext: $cacheContext,
         );
 
-        $this->applyBatchCountResult($attribute, $result, $cap, $truncatedAttribute);
+        $this->applyBatchCountResult($attribute, $result, $cap, $parentKey, $truncatedAttribute);
 
         return $result;
     }
@@ -139,11 +157,12 @@ trait BatchesRelations
         string $attribute,
         BatchCountResult $result,
         ?int $cap,
+        string $parentKey,
         ?string $truncatedAttribute = null,
     ): void {
         foreach ($this as $model) {
             /** @var Model $model */
-            $key = $model->getKey();
+            $key = $model->getAttribute($parentKey);
             if ($key === null) {
                 $model->setAttribute($attribute, 0);
 

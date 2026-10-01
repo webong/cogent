@@ -268,6 +268,24 @@ $conversations->batchAggregateCount(
 );
 ```
 
+Use `parentKey` when the models expose the grouped value through an attribute other than their primary
+key. Optional caching takes a caller-owned namespace in `cacheKey` and a Laravel cache TTL; the cache
+identity also includes the parent IDs, grouped query SQL and bindings, and cap. Constraints applied by
+the callback are part of that query identity. Pass `cacheContext` when a constraint depends on external
+state that is not represented in the query SQL or bindings.
+
+```php
+$items->batchAggregateCount(
+    attribute: 'followers_count',
+    query: Followers::query(),
+    groupBy: 'following_id',
+    cap: null,
+    parentKey: 'user_id',
+    cacheKey: 'explore:followers',
+    ttl: now()->addMinutes(5),
+);
+```
+
 When `cap` is set, the count is clamped and the truncation flag is merged into
 `truncatedAttribute[attribute]`, so several capped counts can share one attribute. The query runs
 through `Webong\Cogent\Support\EloquentBatchCounter`, which never mutates the query you hand it and

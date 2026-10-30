@@ -373,6 +373,43 @@ public static function prepare(CogentCollection $posts, Request $request): void
 }
 ```
 
+### Caching the output
+
+`#[Remember]` caches what a resource renders, or call `remember()` on a resource or collection. A
+hit skips preparing and `toArray()` entirely, so the only query left is the one that fetched the
+models.
+
+```php
+#[Remember(300)]
+#[Includes(['author' => UserResource::class])]
+#[Counts('comments')]
+final class PostResource extends JsonResource
+{
+    use PreparesResources;
+
+    // Optional: anything else the output depends on.
+    public static function cacheVary(Request $request): array
+    {
+        return ['user' => $request->user()?->id];
+    }
+}
+
+return PostResource::collection($posts);                   // #[Remember] on the resource
+return PostResource::collection($posts)->remember(60);     // or per call
+```
+
+An entry is keyed on the models rendered, in order, the requested includes and `cacheVary()`. It is
+forgotten when any of these is saved or deleted through Eloquent:
+
+- a model it rendered, or one reached through a loaded relation;
+- a row a has-one or has-many relation, or a `#[Counts]` count, read: a new comment forgets the post
+  that counted its comments.
+
+Which columns matter for each model class is kept in the cache, so a save in any later request knows
+what to forget; saving a model nobody rendered costs one cache read. Changes Eloquent does not see,
+such as query builder updates and pivot changes, and counts loaded outside the resource with
+`withCount()`, are left to the TTL. Output that depends on the user must say so in `cacheVary()`.
+
 ## Broadcasting
 
 `BroadcastsResources` builds `broadcastWith()` from an event's public properties, as Laravel does

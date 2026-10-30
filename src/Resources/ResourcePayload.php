@@ -17,8 +17,17 @@ final class ResourcePayload
      */
     public static function from(JsonResource $resource): array
     {
-        $resolved = $resource->resolve(Container::getInstance()->make('request'));
+        return self::encode($resource->resolve(Container::getInstance()->make('request')));
+    }
 
+    /**
+     * Turn resolved data into plain arrays and scalars, as a response would encode it.
+     *
+     * @param  array<mixed>  $resolved
+     * @return array<mixed>
+     */
+    public static function encode(array $resolved): array
+    {
         // Nested resources resolve while they are encoded, the same as in a response.
         return json_decode(json_encode($resolved, JSON_THROW_ON_ERROR), true, flags: JSON_THROW_ON_ERROR);
     }

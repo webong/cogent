@@ -11,6 +11,7 @@ use ReflectionClass;
 use Webong\Cogent\Attributes\Counts;
 use Webong\Cogent\Attributes\Includable;
 use Webong\Cogent\Attributes\Includes;
+use Webong\Cogent\Attributes\Remember;
 use Webong\Cogent\Concerns\PreparesResources;
 
 /**
@@ -33,12 +34,14 @@ final class ResourcePlan
      * @param  array<string, class-string<JsonResource>|null>  $includes  Relation paths, mapped to the resource that renders them.
      * @param  list<string>  $counts
      * @param  array<string, class-string<JsonResource>|null>  $includable  Relation paths loaded only when the request asks for them.
+     * @param  int|null  $remember  Seconds to cache the rendered output for, from #[Remember].
      */
     public function __construct(
         public readonly array $includes = [],
         public readonly array $counts = [],
         public readonly bool $hasHook = false,
         public readonly array $includable = [],
+        public readonly ?int $remember = null,
     ) {
     }
 
@@ -177,6 +180,8 @@ final class ResourcePlan
 
         $hasHook = $reflection->hasMethod('prepare') && $reflection->getMethod('prepare')->isStatic();
 
-        return new self($includes, array_values(array_unique($counts)), $hasHook, $includable);
+        $remember = ($reflection->getAttributes(Remember::class)[0] ?? null)?->newInstance()->ttl;
+
+        return new self($includes, array_values(array_unique($counts)), $hasHook, $includable, $remember);
     }
 }

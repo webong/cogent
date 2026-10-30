@@ -37,6 +37,7 @@ final class ResourcePreparer
 
     public function __construct(
         private readonly CachedRelationRegistry $registry,
+        private readonly OutputCache $output,
     ) {
         $this->prepared = new WeakMap;
     }
@@ -156,6 +157,10 @@ final class ResourcePreparer
             $missing = $models->reject(
                 fn (Model $model): bool => array_key_exists($attribute, $model->getAttributes()),
             );
+
+            if ($this->output->isRecording()) {
+                $this->output->record($models, $models->first()->{$relation}());
+            }
 
             if ($missing->isEmpty()) {
                 continue;

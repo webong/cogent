@@ -4,8 +4,15 @@ declare(strict_types=1);
 
 namespace Webong\Cogent;
 
+use Illuminate\Container\Container as ContainerInstance;
+use Illuminate\Contracts\Cache\Repository as CacheRepository;
 use Illuminate\Contracts\Container\Container;
+use Illuminate\Contracts\Events\Dispatcher;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\ServiceProvider;
+use Webong\Cogent\Cache\CacheKeyBuilder;
+use Webong\Cogent\Cache\SurfaceCache;
+use Webong\Cogent\Resources\OutputCache;
 use Webong\Cogent\Resources\ResourcePreparer;
 use Webong\Cogent\Support\CachedRelationAttributeStore;
 use Webong\Cogent\Support\CachedRelationMacro;
@@ -40,6 +47,16 @@ class CogentServiceProvider extends ServiceProvider
             ResourcePreparer::class,
             static fn (Container $app): ResourcePreparer => new ResourcePreparer(
                 $app->make(CachedRelationRegistry::class),
+                $app->make(OutputCache::class),
+            ),
+        );
+
+        $this->app->scoped(
+            OutputCache::class,
+            static fn (Container $app): OutputCache => new OutputCache(
+                $app->make(CacheRepository::class),
+                new SurfaceCache($app->make(CacheRepository::class), indexPrefix: 'cogent:output:index:', useStoreTags: false),
+                new CacheKeyBuilder,
             ),
         );
     }
@@ -50,5 +67,14 @@ class CogentServiceProvider extends ServiceProvider
     public function boot(): void
     {
         CachedRelationMacro::register();
+
+        $this->app->make(Dispatcher::class)->listen(
+            ['eloquent.saved: *', 'eloquent.deleted: *'],
+            static function (string $event, array $payload): void {
+                if (($payload[0] ?? null) instanceof Model) {
+                    ContainerInstance::getInstance()->make(OutputCache::class)->forget($payload[0]);
+                }
+            },
+        );
     }
 }

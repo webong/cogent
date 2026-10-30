@@ -9,7 +9,11 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Http\Resources\Json\ResourceCollection;
+use Webong\Cogent\Cogent;
+use Webong\Cogent\Resources\OutputCache;
 use Webong\Cogent\Resources\PreparedResourceCollection;
+use Webong\Cogent\Resources\ResourcePayload;
+use Webong\Cogent\Resources\ResourcePlan;
 use Webong\Cogent\Resources\ResourcePreparer;
 
 /**
@@ -25,14 +29,31 @@ trait PreparesResources
 {
     private bool $cogentPrepared = false;
 
+    private bool $cogentNested = false;
+
+    private ?int $cogentRemember = null;
+
     /**
-     * Skip preparing, because whoever built this resource already did.
+     * Skip preparing and caching, because whoever built this resource already did.
      *
      * @return $this
      */
     public function markPrepared(): static
     {
         $this->cogentPrepared = true;
+        $this->cogentNested = true;
+
+        return $this;
+    }
+
+    /**
+     * Cache what this resource renders for the given number of seconds, like #[Remember].
+     *
+     * @return $this
+     */
+    public function remember(int $seconds): static
+    {
+        $this->cogentRemember = $seconds;
 
         return $this;
     }
@@ -45,12 +66,26 @@ trait PreparesResources
     {
         $request ??= Container::getInstance()->make('request');
 
-        if (! $this->cogentPrepared) {
-            $this->cogentPrepared = true;
-            $this->prepareResources($request);
+        $ttl = $this->cogentNested ? null : $this->rememberFor();
+        $models = $ttl === null ? null : $this->renderedModels();
+
+        if ($ttl === null || $models === null) {
+            $this->prepareOnce($request);
+
+            return parent::resolve($request);
         }
 
-        return parent::resolve($request);
+        return Container::getInstance()->make(OutputCache::class)->remember(
+            $this->cacheName(),
+            $models,
+            $this->varyFor($request),
+            $ttl,
+            function () use ($request): array {
+                $this->prepareOnce($request);
+
+                return ResourcePayload::encode(parent::resolve($request));
+            },
+        );
     }
 
     /**
@@ -60,6 +95,84 @@ trait PreparesResources
     protected static function newCollection($resource)
     {
         return new PreparedResourceCollection($resource, static::class);
+    }
+
+    private function prepareOnce(Request $request): void
+    {
+        if (! $this->cogentPrepared) {
+            $this->cogentPrepared = true;
+            $this->prepareResources($request);
+        }
+    }
+
+    private function rememberFor(): ?int
+    {
+        return $this->cogentRemember
+            ?? ResourcePlan::for(static::class)->remember
+            ?? (is_string($collects = $this->collectedResource()) ? ResourcePlan::for($collects)->remember : null);
+    }
+
+    /**
+     * The models this resource renders, in order, or null when anything else is rendered.
+     *
+     * @return list<Model>|null
+     */
+    private function renderedModels(): ?array
+    {
+        $items = $this instanceof ResourceCollection ? $this->collection->all() : [$this->resource];
+        $models = [];
+
+        foreach ($items as $item) {
+            $model = $item instanceof JsonResource ? $item->resource : $item;
+
+            if (! $model instanceof Model || $model->getKey() === null) {
+                return null;
+            }
+
+            $models[] = $model;
+        }
+
+        return $models === [] ? null : $models;
+    }
+
+    private function cacheName(): string
+    {
+        $collects = $this->collectedResource();
+
+        return $collects === null ? static::class : static::class.'|'.$collects;
+    }
+
+    /**
+     * What else the output depends on: the requested includes, and whatever a
+     * static cacheVary(Request $request) on the resource returns.
+     *
+     * @return array<string, mixed>
+     */
+    private function varyFor(Request $request): array
+    {
+        $vary = ['includes' => Cogent::requestedIncludes($request)];
+
+        foreach (array_unique(array_filter([static::class, $this->collectedResource()])) as $resource) {
+            if (method_exists($resource, 'cacheVary')) {
+                $vary[$resource] = $resource::cacheVary($request);
+            }
+        }
+
+        return $vary;
+    }
+
+    /**
+     * @return class-string|null
+     */
+    private function collectedResource(): ?string
+    {
+        if (! $this instanceof ResourceCollection) {
+            return null;
+        }
+
+        $collects = $this->collects();
+
+        return is_string($collects) && $collects !== static::class ? $collects : null;
     }
 
     private function prepareResources(Request $request): void

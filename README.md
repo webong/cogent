@@ -38,6 +38,7 @@ required to get started.
 | `BroadcastsAsResource`   | `broadcastWith()` on a model with `BroadcastsEvents`, sending the model's resource                                          |
 | `BroadcastsResources`    | `broadcastWith()` that renders an event's models through their resources                                                   |
 | `SerializesPreparedModels` | a drop-in for `SerializesModels` that restores queued models through their resource plans                             |
+| `SnapshotsBroadcasts`    | renders the broadcast payload when an event is queued, so the worker runs no query                                          |
 | `PreparesResources`      | `#[Includes]`, `#[Includable]`, `#[Counts]` and a static `prepare()` hook, on a `JsonResource` or `ResourceCollection`       |
 
 `Webong\Cogent\CogentCollection` uses every collection concern above. Extend it for your own
@@ -507,6 +508,27 @@ final class PostUpdated implements ShouldBroadcast
 
 A restored event then builds its broadcast payload without another query. `#[WithResource]` on a
 property runs that resource's plan too.
+
+### Snapshots
+
+`SnapshotsBroadcasts`, used in place of `SerializesModels`, renders the payload when the event is
+queued, in the request that already loaded its models. Models are serialized whole with what was
+loaded for them, so `broadcastOn()` still reads them and the worker runs no query at all. The
+payload is what the models looked like at dispatch, and the job is larger.
+
+```php
+final class PostUpdated implements ShouldBroadcast
+{
+    use SnapshotsBroadcasts;
+
+    public function __construct(public Post $post) {}
+
+    public function broadcastOn(): array
+    {
+        return [new PrivateChannel("posts.{$this->post->id}")];
+    }
+}
+```
 
 ## Testing
 

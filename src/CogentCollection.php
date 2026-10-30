@@ -15,9 +15,10 @@ use Webong\Cogent\Concerns\PlugsRelations;
  * An Eloquent collection with every Cogent concern, for models whose own
  * collection does not use them. Extend it, or wrap models in it.
  *
+ * @template TKey of array-key
  * @template TModel of Model
  *
- * @extends Collection<int, TModel>
+ * @extends Collection<TKey, TModel>
  *
  * @phpstan-consistent-constructor
  */

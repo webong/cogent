@@ -25,7 +25,7 @@ final class PostWithCommentsResource extends JsonResource
     public static array $prepared = [];
 
     /**
-     * @param  CogentCollection<Post>  $posts
+     * @param  CogentCollection<int, Post>  $posts
      */
     public static function prepare(CogentCollection $posts, Request $request): void
     {

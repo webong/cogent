@@ -29,6 +29,15 @@ final class Includes
      */
     public function __construct(string|array ...$relations)
     {
+        $this->relations = self::normalize($relations);
+    }
+
+    /**
+     * @param  array<int, string|array<int|string, string>>  $relations
+     * @return array<int|string, string|null>
+     */
+    public static function normalize(array $relations): array
+    {
         $normalized = [];
 
         foreach ($relations as $relation) {
@@ -43,6 +52,6 @@ final class Includes
             }
         }
 
-        $this->relations = $normalized;
+        return $normalized;
     }
 }

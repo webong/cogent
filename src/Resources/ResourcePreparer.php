@@ -10,6 +10,8 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
+use WeakMap;
+use Webong\Cogent\Cogent;
 use Webong\Cogent\CogentCollection;
 use Webong\Cogent\Support\CachedRelationRegistry;
 
@@ -24,17 +26,28 @@ final class ResourcePreparer
      */
     private array $cached = [];
 
+    /**
+     * The resources each model was already prepared for. Nested resources are
+     * resolved while the response is encoded, long after their parent prepared
+     * them, and must not prepare again from the root request.
+     *
+     * @var WeakMap<Model, array<class-string, true>>
+     */
+    private WeakMap $prepared;
+
     public function __construct(
         private readonly CachedRelationRegistry $registry,
     ) {
+        $this->prepared = new WeakMap;
     }
 
     /**
      * @param  iterable<mixed>  $models
      * @param  class-string  $resource
      * @param  list<class-string>  $chain  Resources already being prepared above this one.
+     * @param  list<string>|null  $requested  The ?include= paths relative to this resource, read from the request when null.
      */
-    public function prepare(iterable $models, string $resource, Request $request, array $chain = []): void
+    public function prepare(iterable $models, string $resource, Request $request, array $chain = [], ?array $requested = null): void
     {
         $plan = ResourcePlan::for($resource);
 
@@ -43,9 +56,21 @@ final class ResourcePreparer
         }
 
         $chain[] = $resource;
+        $requested ??= Cogent::requestedIncludes($request);
+        $includes = $plan->includesFor($requested);
 
         foreach ($this->groupByClass($models) as $group) {
-            $this->applyIncludes($group, $plan->includes, $request, $chain);
+            $group = $group->reject(fn (Model $model): bool => isset($this->prepared[$model][$resource]));
+
+            if ($group->isEmpty()) {
+                continue;
+            }
+
+            foreach ($group as $model) {
+                $this->prepared[$model] = [...$this->prepared[$model] ?? [], $resource => true];
+            }
+
+            $this->applyIncludes($group, $includes, $request, $chain, $requested);
             $this->applyCounts($group, $plan->counts);
 
             if ($plan->hasHook) {
@@ -55,29 +80,51 @@ final class ResourcePreparer
     }
 
     /**
-     * @param  CogentCollection<Model>  $models
+     * @param  CogentCollection<int, Model>  $models
      * @param  array<string, class-string<JsonResource>|null>  $includes
      * @param  list<class-string>  $chain
+     * @param  list<string>  $requested
      */
-    private function applyIncludes(CogentCollection $models, array $includes, Request $request, array $chain): void
+    private function applyIncludes(CogentCollection $models, array $includes, Request $request, array $chain, array $requested): void
     {
         foreach ($this->includeTree($includes) as $relation => $branch) {
             $this->load($models, $relation);
 
+            $nested = $this->below($requested, $relation);
+
             foreach ($this->groupByClass($models->related($relation)) as $class => $related) {
-                $this->applyIncludes($related, $branch['children'], $request, $chain);
+                $this->applyIncludes($related, $branch['children'], $request, $chain, $nested);
 
                 $renderedBy = $branch['resource'] ?? ResourcePlan::resourceFor($class);
 
                 if ($renderedBy !== null) {
-                    $this->prepare($related, $renderedBy, $request, $chain);
+                    $this->prepare($related, $renderedBy, $request, $chain, $nested);
                 }
             }
         }
     }
 
     /**
-     * @param  CogentCollection<Model>  $models
+     * The requested paths that continue past a relation, relative to it.
+     *
+     * @param  list<string>  $requested
+     * @return list<string>
+     */
+    private function below(array $requested, string $relation): array
+    {
+        $nested = [];
+
+        foreach ($requested as $path) {
+            if (str_starts_with($path, $relation.'.')) {
+                $nested[] = mb_substr($path, mb_strlen($relation) + 1);
+            }
+        }
+
+        return $nested;
+    }
+
+    /**
+     * @param  CogentCollection<int, Model>  $models
      * @param  list<string>  $counts
      */
     private function applyCounts(CogentCollection $models, array $counts): void
@@ -105,7 +152,7 @@ final class ResourcePreparer
      * Load a relation the cheapest way the model allows: from the cache when it is
      * declared cacheable, otherwise with one batched query that shares instances.
      *
-     * @param  CogentCollection<Model>  $models
+     * @param  CogentCollection<int, Model>  $models
      */
     private function load(CogentCollection $models, string $relation): void
     {
@@ -167,7 +214,7 @@ final class ResourcePreparer
      * Relations are read off the first model of a collection, so every group holds one model class.
      *
      * @param  iterable<mixed>  $models
-     * @return array<class-string<Model>, CogentCollection<Model>>
+     * @return array<class-string<Model>, CogentCollection<int, Model>>
      */
     private function groupByClass(iterable $models): array
     {

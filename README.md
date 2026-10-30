@@ -35,7 +35,7 @@ required to get started.
 | `GraphRelations`         | `related`, `shareRelation`                                                                                                   |
 | `IncludesRelations`      | `include`, `includeMissing`, `includeMissingMorph`                                                                           |
 | `BatchesRelations`       | `batchCount`, `batchAggregateCount`                                                                                          |
-| `PreparesResources`      | `#[Includes]`, `#[Counts]` and a static `prepare()` hook, on a `JsonResource` or `ResourceCollection`                        |
+| `PreparesResources`      | `#[Includes]`, `#[Includable]`, `#[Counts]` and a static `prepare()` hook, on a `JsonResource` or `ResourceCollection`       |
 
 `Webong\Cogent\CogentCollection` uses every collection concern above. Extend it for your own
 collections, or let Cogent wrap models in it when their collection does not use the concerns.
@@ -337,6 +337,28 @@ return new PostResource($post);
   on the model, then the `App\Http\Resources` naming convention.
 - `collection()`, `toResourceCollection()`, paginators and `ResourceCollection` subclasses that use the
   trait are all prepared. A single resource prepares its one model.
+
+### Requested includes
+
+`#[Includable]` declares relations that load only when the request names them, with
+`?include=author,comments.post` or `?include[]=author`. Anything not declared is ignored, so a
+client can never load more than the resource allows.
+
+```php
+#[Includable(['author' => UserResource::class], 'comments')]
+final class PostResource extends JsonResource
+{
+    use PreparesResources;
+}
+```
+
+A nested path is handed to the resource that renders the relation: `?include=author.posts` loads
+`author` here and asks `UserResource` for `posts`, which it loads only if it declares
+`#[Includable('posts')]` itself. Read another parameter than `include` from a service provider:
+
+```php
+Cogent::includeParameter('with');
+```
 
 For anything the attributes cannot say, add a static `prepare()`. It runs once per resolve, with every
 model in a `CogentCollection`:

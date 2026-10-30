@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Webong\Cogent\Concerns;
 
-use Illuminate\Container\Container;
 use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Database\Eloquent\Model;
@@ -12,6 +11,7 @@ use Illuminate\Http\Resources\Json\JsonResource;
 use ReflectionClass;
 use ReflectionProperty;
 use Webong\Cogent\Attributes\WithResource;
+use Webong\Cogent\Resources\ResourcePayload;
 use Webong\Cogent\Resources\ResourcePlan;
 
 /**
@@ -53,10 +53,7 @@ trait BroadcastsResources
         }
 
         if ($value instanceof JsonResource) {
-            $resolved = $value->resolve(Container::getInstance()->make('request'));
-
-            // Nested resources resolve while they are encoded, the same as in a response.
-            return json_decode(json_encode($resolved, JSON_THROW_ON_ERROR), true, flags: JSON_THROW_ON_ERROR);
+            return ResourcePayload::from($value);
         }
 
         return $value instanceof Arrayable ? $value->toArray() : $value;

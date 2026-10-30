@@ -35,6 +35,7 @@ required to get started.
 | `GraphRelations`         | `related`, `shareRelation`                                                                                                   |
 | `IncludesRelations`      | `include`, `includeMissing`, `includeMissingMorph`                                                                           |
 | `BatchesRelations`       | `batchCount`, `batchAggregateCount`                                                                                          |
+| `BroadcastsAsResource`   | `broadcastWith()` on a model with `BroadcastsEvents`, sending the model's resource                                          |
 | `BroadcastsResources`    | `broadcastWith()` that renders an event's models through their resources                                                   |
 | `PreparesResources`      | `#[Includes]`, `#[Includable]`, `#[Counts]` and a static `prepare()` hook, on a `JsonResource` or `ResourceCollection`       |
 
@@ -395,6 +396,18 @@ final class PostUpdated implements ShouldBroadcast
 ```
 
 Models without a resource fall back to `toArray()`.
+
+For models that broadcast their own events with Laravel's `BroadcastsEvents`, add
+`BroadcastsAsResource` and every model event is sent as the model's resource:
+
+```php
+#[UseResource(PostResource::class)]
+class Post extends Model
+{
+    use BroadcastsAsResource;
+    use BroadcastsEvents;
+}
+```
 
 ## Testing
 

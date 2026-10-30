@@ -81,3 +81,24 @@ it('falls back to toArray() for models without a resource', function (): void {
 
     expect($event->broadcastWith())->toBe(['user' => ['id' => 1, 'name' => 'Ada']]);
 });
+
+it('broadcasts a model event as the model resource', function (): void {
+    $post = Webong\Cogent\Tests\Fixtures\Models\BroadcastingPost::query()->firstOrFail();
+
+    expect($post->newBroadcastableModelEvent('updated')->broadcastWith())->toBe([
+        'id' => 1,
+        'title' => 'First post',
+        'author' => ['id' => 1, 'name' => 'Ada', 'tags' => [], 'posts_count' => 1],
+        'comments_count' => 2,
+    ]);
+});
+
+it('keeps Laravel\'s model event payload for models without a resource', function (): void {
+    $user = new class extends User {
+        use Webong\Cogent\Concerns\BroadcastsAsResource;
+
+        protected $table = 'users';
+    };
+
+    expect($user->broadcastWith('created'))->toBeNull();
+});

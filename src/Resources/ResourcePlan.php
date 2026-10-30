@@ -53,16 +53,26 @@ final class ResourcePlan
     }
 
     /**
-     * Find the resource that renders a model, the way Laravel's toResource() does:
-     * #[UseResource] on the model first, then the App\Http\Resources naming convention.
-     *
-     * Only resources that prepare themselves are returned, since a plan is all a
-     * caller can use them for.
+     * Find the resource that renders a model and prepares itself.
      *
      * @param  class-string<Model>  $model
      * @return class-string<JsonResource>|null
      */
     public static function resourceFor(string $model): ?string
+    {
+        $resource = self::guessResource($model);
+
+        return $resource !== null && self::prepares($resource) ? $resource : null;
+    }
+
+    /**
+     * Find the resource that renders a model, the way Laravel's toResource() does:
+     * #[UseResource] on the model first, then the App\Http\Resources naming convention.
+     *
+     * @param  class-string<Model>  $model
+     * @return class-string<JsonResource>|null
+     */
+    public static function guessResource(string $model): ?string
     {
         if (array_key_exists($model, self::$resources)) {
             return self::$resources[$model];
@@ -85,7 +95,7 @@ final class ResourcePlan
         }
 
         foreach ($candidates as $candidate) {
-            if (class_exists($candidate) && self::prepares($candidate)) {
+            if (class_exists($candidate) && is_subclass_of($candidate, JsonResource::class)) {
                 return self::$resources[$model] = $candidate;
             }
         }

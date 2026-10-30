@@ -35,6 +35,7 @@ required to get started.
 | `GraphRelations`         | `related`, `shareRelation`                                                                                                   |
 | `IncludesRelations`      | `include`, `includeMissing`, `includeMissingMorph`                                                                           |
 | `BatchesRelations`       | `batchCount`, `batchAggregateCount`                                                                                          |
+| `BroadcastsResources`    | `broadcastWith()` that renders an event's models through their resources                                                   |
 | `PreparesResources`      | `#[Includes]`, `#[Includable]`, `#[Counts]` and a static `prepare()` hook, on a `JsonResource` or `ResourceCollection`       |
 
 `Webong\Cogent\CogentCollection` uses every collection concern above. Extend it for your own
@@ -369,6 +370,31 @@ public static function prepare(CogentCollection $posts, Request $request): void
     $posts->plugMissing('channel', $request->user()->channels);
 }
 ```
+
+## Broadcasting
+
+`BroadcastsResources` builds `broadcastWith()` from an event's public properties, as Laravel does
+when an event has none, but renders models and Eloquent collections through their resources. Clients
+get the same shape over a websocket as over HTTP, and resources that use `PreparesResources` run
+their plan before the payload is built.
+
+```php
+use Webong\Cogent\Attributes\WithResource;
+use Webong\Cogent\Concerns\BroadcastsResources;
+
+final class PostUpdated implements ShouldBroadcast
+{
+    use BroadcastsResources;
+    use SerializesModels;
+
+    public function __construct(
+        public Post $post,                                         // #[UseResource] or App\Http\Resources\PostResource
+        #[WithResource(EditorResource::class)] public User $editor,
+    ) {}
+}
+```
+
+Models without a resource fall back to `toArray()`.
 
 ## Testing
 

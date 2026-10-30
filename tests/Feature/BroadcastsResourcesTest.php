@@ -1,0 +1,83 @@
+<?php
+
+declare(strict_types=1);
+
+use Illuminate\Broadcasting\BroadcastEvent;
+use Illuminate\Contracts\Broadcasting\Factory as BroadcastFactory;
+use Illuminate\Support\Facades\Broadcast;
+use Webong\Cogent\Resources\ResourcePlan;
+use Webong\Cogent\Tests\Fixtures\Broadcasting\CapturingBroadcaster;
+use Webong\Cogent\Tests\Fixtures\Events\PostUpdated;
+use Webong\Cogent\Tests\Fixtures\Models\Comment;
+use Webong\Cogent\Tests\Fixtures\Models\Post;
+use Webong\Cogent\Tests\Fixtures\Models\User;
+
+beforeEach(function (): void {
+    ResourcePlan::flush();
+
+    $author = User::query()->create(['name' => 'Ada']);
+    createComments(createPosts($author)->first(), 2);
+});
+
+function postUpdated(): PostUpdated
+{
+    return new PostUpdated(
+        post: Post::query()->firstOrFail(),
+        editor: User::query()->firstOrFail(),
+        comments: Comment::query()->orderBy('id')->get(),
+        reason: 'typo',
+    );
+}
+
+it('renders models and collections through their resources', function (): void {
+    $event = postUpdated();
+    $queries = $this->countQueries();
+
+    $payload = $event->broadcastWith();
+
+    // PostResource: author, its tags, post counts and comment counts. The editor is
+    // another instance, so UserResource counts its posts again but reads its tags
+    // from the cache. CommentResource loads every comment's post.
+    expect($queries())->toBe(6)
+        ->and($payload)->toBe([
+            'post' => [
+                'id' => 1,
+                'title' => 'First post',
+                'author' => ['id' => 1, 'name' => 'Ada', 'tags' => [], 'posts_count' => 1],
+                'comments_count' => 2,
+            ],
+            'editor' => ['id' => 1, 'name' => 'Ada', 'tags' => [], 'posts_count' => 1],
+            'comments' => [
+                ['id' => 1, 'body' => 'Comment #1', 'post_title' => 'First post'],
+                ['id' => 2, 'body' => 'Comment #2', 'post_title' => 'First post'],
+            ],
+            'reason' => 'typo',
+        ]);
+});
+
+it('sends the resource payload through the broadcaster', function (): void {
+    $broadcaster = new CapturingBroadcaster;
+
+    Broadcast::extend('capture', fn (): CapturingBroadcaster => $broadcaster);
+    config(['broadcasting.default' => 'capture', 'broadcasting.connections.capture' => ['driver' => 'capture']]);
+
+    (new BroadcastEvent(postUpdated()))->handle(app(BroadcastFactory::class));
+
+    expect($broadcaster->broadcasts)->toHaveCount(1)
+        ->and($broadcaster->broadcasts[0]['channels'])->toBe(['private-posts.1'])
+        ->and($broadcaster->broadcasts[0]['event'])->toBe(PostUpdated::class)
+        ->and($broadcaster->broadcasts[0]['payload']['post']['comments_count'])->toBe(2)
+        ->and($broadcaster->broadcasts[0]['payload'])->toHaveKey('socket');
+});
+
+it('falls back to toArray() for models without a resource', function (): void {
+    $event = new class (User::query()->firstOrFail()) {
+        use Webong\Cogent\Concerns\BroadcastsResources;
+
+        public function __construct(public User $user)
+        {
+        }
+    };
+
+    expect($event->broadcastWith())->toBe(['user' => ['id' => 1, 'name' => 'Ada']]);
+});

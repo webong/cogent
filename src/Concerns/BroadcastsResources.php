@@ -11,6 +11,7 @@ use Illuminate\Http\Resources\Json\JsonResource;
 use ReflectionClass;
 use ReflectionProperty;
 use Webong\Cogent\Attributes\WithResource;
+use Webong\Cogent\Resources\BroadcastLimit;
 use Webong\Cogent\Resources\ResourcePayload;
 use Webong\Cogent\Resources\ResourcePlan;
 
@@ -36,7 +37,7 @@ trait BroadcastsResources
             $payload[$property->getName()] = $this->broadcastValue($property);
         }
 
-        return $payload;
+        return BroadcastLimit::check($this, $payload);
     }
 
     private function broadcastValue(ReflectionProperty $property): mixed

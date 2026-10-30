@@ -102,3 +102,41 @@ it('keeps Laravel\'s model event payload for models without a resource', functio
 
     expect($user->broadcastWith('created'))->toBeNull();
 });
+
+it('throws when a payload is over the broadcast limit', function (): void {
+    Webong\Cogent\Cogent::limitBroadcasts(100);
+
+    try {
+        postUpdated()->broadcastWith();
+    } finally {
+        Webong\Cogent\Cogent::flush();
+    }
+})->throws(Webong\Cogent\Exceptions\BroadcastTooLargeException::class, 'over the limit of 100');
+
+it('reports oversized model broadcasts through a handler and still sends them', function (): void {
+    $reported = [];
+
+    Webong\Cogent\Cogent::limitBroadcasts(10);
+    Webong\Cogent\Cogent::handleOversizedBroadcastsUsing(function (object $event, int $bytes, int $limit) use (&$reported): void {
+        $reported[] = [$event::class, $bytes > $limit];
+    });
+
+    try {
+        $payload = Webong\Cogent\Tests\Fixtures\Models\BroadcastingPost::query()->firstOrFail()->broadcastWith('updated');
+    } finally {
+        Webong\Cogent\Cogent::flush();
+    }
+
+    expect($payload)->toHaveKey('title')
+        ->and($reported)->toBe([[Webong\Cogent\Tests\Fixtures\Models\BroadcastingPost::class, true]]);
+});
+
+it('lets payloads under the limit through', function (): void {
+    Webong\Cogent\Cogent::limitBroadcasts();
+
+    try {
+        expect(postUpdated()->broadcastWith())->toHaveKey('post');
+    } finally {
+        Webong\Cogent\Cogent::flush();
+    }
+});

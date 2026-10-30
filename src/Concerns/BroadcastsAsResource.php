@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Webong\Cogent\Concerns;
 
 use Illuminate\Database\Eloquent\Model;
+use Webong\Cogent\Resources\BroadcastLimit;
 use Webong\Cogent\Resources\ResourcePayload;
 use Webong\Cogent\Resources\ResourcePlan;
 
@@ -23,6 +24,6 @@ trait BroadcastsAsResource
     {
         $resource = ResourcePlan::guessResource(static::class);
 
-        return $resource === null ? null : ResourcePayload::from($resource::make($this));
+        return $resource === null ? null : BroadcastLimit::check($this, ResourcePayload::from($resource::make($this)));
     }
 }

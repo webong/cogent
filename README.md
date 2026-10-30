@@ -473,6 +473,16 @@ class Post extends Model
 }
 ```
 
+Pusher accepts 10KB per message and Reverb 10,000 bytes by default. Check payloads built from
+resources against a limit, and throw `BroadcastTooLargeException` or report through a handler:
+
+```php
+Cogent::limitBroadcasts(10_000);
+Cogent::handleOversizedBroadcastsUsing(function (object $event, int $bytes, int $limit): void {
+    logger()->warning($event::class." broadcast is {$bytes} bytes, over {$limit}");
+});
+```
+
 ## Queued events and jobs
 
 Laravel's `SerializesModels` queries every restored model again and reloads its relations one by

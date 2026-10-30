@@ -8,6 +8,7 @@ use Closure;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Webong\Cogent\Resources\BroadcastLimit;
 use Webong\Cogent\Resources\RenderGuard;
 
 /**
@@ -61,9 +62,30 @@ final class Cogent
         RenderGuard::handleUsing($handler);
     }
 
+    /**
+     * Check payloads built from resources for broadcasting against a size, in
+     * bytes of JSON. Pusher accepts 10KB and Reverb 10,000 bytes by default.
+     * Pass null to stop checking.
+     */
+    public static function limitBroadcasts(?int $bytes = 10_000): void
+    {
+        BroadcastLimit::set($bytes);
+    }
+
+    /**
+     * Handle an oversized broadcast payload instead of throwing BroadcastTooLargeException.
+     *
+     * @param  (Closure(object, int, int): void)|null  $handler  Receives the event, its size and the limit.
+     */
+    public static function handleOversizedBroadcastsUsing(?Closure $handler): void
+    {
+        BroadcastLimit::handleUsing($handler);
+    }
+
     public static function flush(): void
     {
         self::$includeParameter = 'include';
         RenderGuard::flush();
+        BroadcastLimit::flush();
     }
 }

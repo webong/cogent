@@ -152,3 +152,30 @@ it('remembers a single resource and keeps pagination meta', function (): void {
     expect($page['data'])->toHaveCount(2)
         ->and($page['meta']['total'])->toBe(3);
 });
+
+it('gives every authenticated user their own entry', function (): void {
+    $render = function (?User $user, bool $shared = false): int {
+        app()->forgetScopedInstances();
+
+        $request = Request::create('/posts');
+        app()->instance('request', $request);
+        // Set after binding: rebinding the request resets its user resolver.
+        $request->setUserResolver(fn (): ?User => $user);
+
+        $posts = Post::query()->where('user_id', 1)->orderBy('id')->get();
+        $queries = test()->countQueries();
+
+        RememberedPostResource::collection($posts)->remember(300, shared: $shared)->response($request);
+
+        return $queries();
+    };
+
+    $ada = User::query()->findOrFail(1);
+    $grace = User::query()->findOrFail(2);
+
+    expect($render($ada))->toBeGreaterThan(0)
+        ->and($render($ada))->toBe(0)
+        ->and($render($grace))->toBeGreaterThan(0)
+        ->and($render(null, shared: true))->toBeGreaterThan(0)
+        ->and($render($grace, shared: true))->toBe(0);
+});

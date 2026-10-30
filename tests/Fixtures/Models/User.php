@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Webong\Cogent\Tests\Fixtures\Models;
 
+use Illuminate\Auth\Authenticatable as AuthenticatableUser;
+use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
@@ -15,8 +17,9 @@ use Webong\Cogent\Tests\Fixtures\Collections\UserCollection;
  * @property int $id
  * @property string $name
  */
-class User extends Model
+class User extends Model implements Authenticatable
 {
+    use AuthenticatableUser;
     use DefinesCachedRelations;
 
     /**

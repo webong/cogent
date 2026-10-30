@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace Webong\Cogent\Concerns;
 
 use Illuminate\Container\Container;
+use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Http\Resources\Json\ResourceCollection;
+use Webong\Cogent\Attributes\Remember;
 use Webong\Cogent\Cogent;
 use Webong\Cogent\Resources\OutputCache;
 use Webong\Cogent\Resources\PreparedResourceCollection;
@@ -31,7 +33,7 @@ trait PreparesResources
 
     private bool $cogentNested = false;
 
-    private ?int $cogentRemember = null;
+    private ?Remember $cogentRemember = null;
 
     /**
      * Skip preparing and caching, because whoever built this resource already did.
@@ -48,12 +50,13 @@ trait PreparesResources
 
     /**
      * Cache what this resource renders for the given number of seconds, like #[Remember].
+     * Each authenticated user gets their own entry unless it is shared.
      *
      * @return $this
      */
-    public function remember(int $seconds): static
+    public function remember(int $seconds, bool $shared = false): static
     {
-        $this->cogentRemember = $seconds;
+        $this->cogentRemember = new Remember($seconds, $shared);
 
         return $this;
     }
@@ -66,10 +69,10 @@ trait PreparesResources
     {
         $request ??= Container::getInstance()->make('request');
 
-        $ttl = $this->cogentNested ? null : $this->rememberFor();
-        $models = $ttl === null ? null : $this->renderedModels();
+        $remember = $this->cogentNested ? null : $this->rememberFor();
+        $models = $remember === null ? null : $this->renderedModels();
 
-        if ($ttl === null || $models === null) {
+        if ($remember === null || $models === null) {
             $this->prepareOnce($request);
 
             return parent::resolve($request);
@@ -78,8 +81,8 @@ trait PreparesResources
         return Container::getInstance()->make(OutputCache::class)->remember(
             $this->cacheName(),
             $models,
-            $this->varyFor($request),
-            $ttl,
+            $this->varyFor($request, $remember),
+            $remember->ttl,
             function () use ($request): array {
                 $this->prepareOnce($request);
 
@@ -105,7 +108,7 @@ trait PreparesResources
         }
     }
 
-    private function rememberFor(): ?int
+    private function rememberFor(): ?Remember
     {
         return $this->cogentRemember
             ?? ResourcePlan::for(static::class)->remember
@@ -143,14 +146,21 @@ trait PreparesResources
     }
 
     /**
-     * What else the output depends on: the requested includes, and whatever a
-     * static cacheVary(Request $request) on the resource returns.
+     * What else the output depends on: the requested includes, the authenticated
+     * user unless the output is shared, and whatever a static
+     * cacheVary(Request $request) on the resource returns.
      *
      * @return array<string, mixed>
      */
-    private function varyFor(Request $request): array
+    private function varyFor(Request $request, Remember $remember): array
     {
         $vary = ['includes' => Cogent::requestedIncludes($request)];
+
+        if (! $remember->shared) {
+            $user = $request->user();
+
+            $vary['user'] = $user instanceof Authenticatable ? $user->getAuthIdentifier() : null;
+        }
 
         foreach (array_unique(array_filter([static::class, $this->collectedResource()])) as $resource) {
             if (method_exists($resource, 'cacheVary')) {

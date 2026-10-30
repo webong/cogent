@@ -390,7 +390,7 @@ final class PostResource extends JsonResource
     // Optional: anything else the output depends on.
     public static function cacheVary(Request $request): array
     {
-        return ['user' => $request->user()?->id];
+        return ['locale' => app()->getLocale()];
     }
 }
 
@@ -398,7 +398,11 @@ return PostResource::collection($posts);                   // #[Remember] on the
 return PostResource::collection($posts)->remember(60);     // or per call
 ```
 
-An entry is keyed on the models rendered, in order, the requested includes and `cacheVary()`. It is
+Every authenticated user gets their own entry. Output that is the same for everyone can share one
+with `#[Remember(300, shared: true)]` or `remember(60, shared: true)`.
+
+An entry is keyed on the models rendered, in order, the requested includes, the user unless it is
+shared, and `cacheVary()`. It is
 forgotten when any of these is saved or deleted through Eloquent:
 
 - a model it rendered, or one reached through a loaded relation;
@@ -408,7 +412,7 @@ forgotten when any of these is saved or deleted through Eloquent:
 Which columns matter for each model class is kept in the cache, so a save in any later request knows
 what to forget; saving a model nobody rendered costs one cache read. Changes Eloquent does not see,
 such as query builder updates and pivot changes, and counts loaded outside the resource with
-`withCount()`, are left to the TTL. Output that depends on the user must say so in `cacheVary()`.
+`withCount()`, are left to the TTL.
 
 ## Broadcasting
 

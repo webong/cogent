@@ -22,7 +22,7 @@ final class ConversationCollection extends Collection
 composer require webong/cogent
 ```
 
-The service provider is auto-discovered. It registers two scoped services, so nothing else is
+The service provider is auto-discovered. It registers its scoped services, so nothing else is
 required to get started.
 
 ## Concerns
@@ -35,6 +35,10 @@ required to get started.
 | `GraphRelations`         | `related`, `shareRelation`                                                                                                   |
 | `IncludesRelations`      | `include`, `includeMissing`, `includeMissingMorph`                                                                           |
 | `BatchesRelations`       | `batchCount`, `batchAggregateCount`                                                                                          |
+| `PreparesResources`      | `#[Includes]`, `#[Counts]` and a static `prepare()` hook, on a `JsonResource` or `ResourceCollection`                        |
+
+`Webong\Cogent\CogentCollection` uses every collection concern above. Extend it for your own
+collections, or let Cogent wrap models in it when their collection does not use the concerns.
 
 `IncludesRelations` builds on `GraphRelations`, so a collection that includes relations can also read
 and share them. Every method on both traits works on relations that are already in memory: none of
@@ -290,6 +294,59 @@ When `cap` is set, the count is clamped and the truncation flag is merged into
 `truncatedAttribute[attribute]`, so several capped counts can share one attribute. The query runs
 through `Webong\Cogent\Support\EloquentBatchCounter`, which never mutates the query you hand it and
 returns a `BatchCountResult` for direct inspection.
+
+## Resources
+
+A resource declares what it renders, and Cogent loads it for every model in the collection, once,
+right before the collection is resolved. Controllers stay plain Laravel and `toArray()` keeps using
+`whenLoaded()` and `whenCounted()`.
+
+```php
+use Webong\Cogent\Attributes\Counts;
+use Webong\Cogent\Attributes\Includes;
+use Webong\Cogent\Concerns\PreparesResources;
+
+#[Includes(['author' => UserResource::class, 'channel'])]
+#[Counts('comments')]
+final class PostResource extends JsonResource
+{
+    use PreparesResources;
+
+    public function toArray(Request $request): array
+    {
+        return [
+            'id' => $this->id,
+            'author' => new UserResource($this->whenLoaded('author')),
+            'comments_count' => $this->whenCounted('comments'),
+        ];
+    }
+}
+
+return PostResource::collection(Post::query()->paginate());
+return Post::query()->get()->toResourceCollection(PostResource::class);
+return new PostResource($post);
+```
+
+- `#[Includes]` takes relation names or dotted paths. Each relation is loaded with `includeMissing()`,
+  so duplicate rows share one instance, or with `loadMissingCached()` when the model declares it
+  cacheable. Relations that are already loaded are left alone.
+- `#[Counts]` writes `{snake(relation)}_count` with `batchCount()`, falling back to `loadCount()` for
+  relations that are not has-one-or-many. Counts that are already present are left alone.
+- Map a relation to the resource that renders it and that resource's plan runs on the related models
+  too, in the same pass. Without a map, Cogent finds it the way `toResource()` does: `#[UseResource]`
+  on the model, then the `App\Http\Resources` naming convention.
+- `collection()`, `toResourceCollection()`, paginators and `ResourceCollection` subclasses that use the
+  trait are all prepared. A single resource prepares its one model.
+
+For anything the attributes cannot say, add a static `prepare()`. It runs once per resolve, with every
+model in a `CogentCollection`:
+
+```php
+public static function prepare(CogentCollection $posts, Request $request): void
+{
+    $posts->plugMissing('channel', $request->user()->channels);
+}
+```
 
 ## Testing
 

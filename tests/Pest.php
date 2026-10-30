@@ -10,11 +10,11 @@ use Webong\Cogent\Tests\Fixtures\Models\Post;
 use Webong\Cogent\Tests\Fixtures\Models\User;
 use Webong\Cogent\Tests\TestCase;
 
-uses(TestCase::class)->in('Feature', 'Unit');
-
-afterEach(function (): void {
-    Relation::morphMap([], false);
-});
+uses(TestCase::class)
+    ->afterEach(function (): void {
+        Relation::morphMap([], false);
+    })
+    ->in('Feature', 'Unit');
 
 /**
  * @return PostCollection<int, Post>

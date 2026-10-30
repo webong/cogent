@@ -6,6 +6,7 @@ namespace Webong\Cogent;
 
 use Illuminate\Contracts\Container\Container;
 use Illuminate\Support\ServiceProvider;
+use Webong\Cogent\Resources\ResourcePreparer;
 use Webong\Cogent\Support\CachedRelationAttributeStore;
 use Webong\Cogent\Support\CachedRelationMacro;
 use Webong\Cogent\Support\CachedRelationRegistry;
@@ -35,7 +36,12 @@ class CogentServiceProvider extends ServiceProvider
             ),
         );
 
-
+        $this->app->scoped(
+            ResourcePreparer::class,
+            static fn (Container $app): ResourcePreparer => new ResourcePreparer(
+                $app->make(CachedRelationRegistry::class),
+            ),
+        );
     }
 
     /**

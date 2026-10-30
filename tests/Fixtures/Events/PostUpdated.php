@@ -7,9 +7,9 @@ namespace Webong\Cogent\Tests\Fixtures\Events;
 use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Queue\SerializesModels;
 use Webong\Cogent\Attributes\WithResource;
 use Webong\Cogent\Concerns\BroadcastsResources;
+use Webong\Cogent\Concerns\SerializesPreparedModels;
 use Webong\Cogent\Tests\Fixtures\Models\Comment;
 use Webong\Cogent\Tests\Fixtures\Models\Post;
 use Webong\Cogent\Tests\Fixtures\Models\User;
@@ -19,7 +19,7 @@ use Webong\Cogent\Tests\Fixtures\Resources\UserResource;
 final class PostUpdated implements ShouldBroadcastNow
 {
     use BroadcastsResources;
-    use SerializesModels;
+    use SerializesPreparedModels;
 
     /**
      * @param  Collection<int, Comment>  $comments

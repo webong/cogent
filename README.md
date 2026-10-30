@@ -37,6 +37,7 @@ required to get started.
 | `BatchesRelations`       | `batchCount`, `batchAggregateCount`                                                                                          |
 | `BroadcastsAsResource`   | `broadcastWith()` on a model with `BroadcastsEvents`, sending the model's resource                                          |
 | `BroadcastsResources`    | `broadcastWith()` that renders an event's models through their resources                                                   |
+| `SerializesPreparedModels` | a drop-in for `SerializesModels` that restores queued models through their resource plans                             |
 | `PreparesResources`      | `#[Includes]`, `#[Includable]`, `#[Counts]` and a static `prepare()` hook, on a `JsonResource` or `ResourceCollection`       |
 
 `Webong\Cogent\CogentCollection` uses every collection concern above. Extend it for your own
@@ -408,6 +409,31 @@ class Post extends Model
     use BroadcastsEvents;
 }
 ```
+
+## Queued events and jobs
+
+Laravel's `SerializesModels` queries every restored model again and reloads its relations one by
+one, so counts and cached relations are lost on the way through the queue. Swap it for
+`SerializesPreparedModels` and restored models load what their resource renders, while the relations
+they had are read from the cache when they are cacheable:
+
+```php
+use Webong\Cogent\Concerns\SerializesPreparedModels;
+
+final class PostUpdated implements ShouldBroadcast
+{
+    use BroadcastsResources;
+    use SerializesPreparedModels;
+
+    public function __construct(
+        public Post $post,
+        #[WithResource(EditorResource::class)] public User $editor,
+    ) {}
+}
+```
+
+A restored event then builds its broadcast payload without another query. `#[WithResource]` on a
+property runs that resource's plan too.
 
 ## Testing
 

@@ -80,6 +80,27 @@ final class ResourcePreparer
     }
 
     /**
+     * Load what restored models need: the plan of the resource that renders them,
+     * then the relations they had when they were serialized, from the cache when
+     * those are cacheable.
+     *
+     * @param  iterable<mixed>  $models
+     * @param  list<string>  $relations
+     */
+    public function restore(iterable $models, array $relations, Request $request): void
+    {
+        foreach ($this->groupByClass($models) as $class => $group) {
+            $resource = ResourcePlan::resourceFor($class);
+
+            if ($resource !== null) {
+                $this->prepare($group, $resource, $request, [], []);
+            }
+
+            $this->applyIncludes($group, array_fill_keys($relations, null), $request, [], []);
+        }
+    }
+
+    /**
      * @param  CogentCollection<int, Model>  $models
      * @param  array<string, class-string<JsonResource>|null>  $includes
      * @param  list<class-string>  $chain

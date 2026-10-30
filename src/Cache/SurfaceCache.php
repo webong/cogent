@@ -9,6 +9,7 @@ use Illuminate\Cache\Repository as CacheRepository;
 use Illuminate\Contracts\Cache\LockProvider;
 use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Contracts\Cache\Repository;
+use LogicException;
 use stdClass;
 
 final class SurfaceCache
@@ -20,6 +21,7 @@ final class SurfaceCache
         private readonly string $indexPrefix = 'cogent:surface-cache:index:',
         private readonly string $payloadMarker = self::CACHE_VALUE_MARKER,
         private readonly ?string $lockPrefix = null,
+        private readonly bool $useStoreTags = true,
     ) {
     }
 
@@ -35,7 +37,7 @@ final class SurfaceCache
         $tags = array_values(array_unique($tags));
         $cacheMissSentinel = new stdClass;
 
-        if ($this->cache->supportsTags()) {
+        if ($this->usesStoreTags()) {
             $taggedCache = $this->cache->tags($tags);
             $cachedPayload = $taggedCache->get($key, $cacheMissSentinel);
 
@@ -63,6 +65,38 @@ final class SurfaceCache
     }
 
     /**
+     * Remember a value whose tags are only known once it is built: the callback
+     * returns the value and its tags. Tags are always kept in the fallback index,
+     * since a tagged store needs them before the value is read.
+     *
+     * @param  Closure(): array{0: mixed, 1: array<int, string>}  $callback
+     */
+    public function rememberUsing(string $key, int $ttl, Closure $callback): CacheResult
+    {
+        if ($this->usesStoreTags()) {
+            throw new LogicException('Tags known only after the value is built need a SurfaceCache that does not use store tags.');
+        }
+
+        if ($ttl <= 0) {
+            return new CacheResult($callback()[0], false);
+        }
+
+        $cacheMissSentinel = new stdClass;
+        $cachedPayload = $this->cache->get($key, $cacheMissSentinel);
+
+        if ($cachedPayload !== $cacheMissSentinel) {
+            return new CacheResult($this->unwrapCachedPayload($cachedPayload), true);
+        }
+
+        [$value, $tags] = $callback();
+
+        $this->cache->put($key, $this->wrapCachedPayload($value), $ttl);
+        $this->registerFallbackIndexes($key, array_values(array_unique($tags)), $ttl);
+
+        return new CacheResult($value, false);
+    }
+
+    /**
      * @param  array<int, string>  $tags
      */
     public function invalidateTags(array $tags): void
@@ -73,7 +107,7 @@ final class SurfaceCache
             return;
         }
 
-        if ($this->cache->supportsTags()) {
+        if ($this->usesStoreTags()) {
             $this->cache->tags($tags)->flush();
 
             return;
@@ -130,6 +164,11 @@ final class SurfaceCache
         $existingKeys[] = $key;
 
         $this->cache->put($indexKey, array_values(array_unique($existingKeys)), $ttl + 300);
+    }
+
+    private function usesStoreTags(): bool
+    {
+        return $this->useStoreTags && $this->cache->supportsTags();
     }
 
     private function fallbackIndexKey(string $tag): string

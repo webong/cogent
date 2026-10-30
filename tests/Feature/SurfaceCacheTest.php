@@ -153,3 +153,46 @@ it('builds stable keys for equivalent parameters', function (): void {
     expect($first)->toBe($second)
         ->and($first)->toStartWith('inbox:user:7:conversations:list:');
 });
+
+it('remembers a value with tags known only once it is built', function (): void {
+    $cache = new SurfaceCache(Cache::store(), useStoreTags: false);
+    $callbacks = 0;
+
+    $build = function () use (&$callbacks): array {
+        $callbacks++;
+
+        return [['version' => $callbacks], ['post:1', 'user:1']];
+    };
+
+    $first = $cache->rememberUsing('posts:list', 60, $build);
+    $second = $cache->rememberUsing('posts:list', 60, $build);
+
+    $cache->invalidateTags(['user:1']);
+
+    $third = $cache->rememberUsing('posts:list', 60, $build);
+
+    expect($first->hit)->toBeFalse()
+        ->and($second->hit)->toBeTrue()
+        ->and($second->value)->toBe(['version' => 1])
+        ->and($third->hit)->toBeFalse()
+        ->and($third->value)->toBe(['version' => 2]);
+});
+
+it('keeps tags in the fallback index on a store that supports tags when told to', function (): void {
+    $repository = new class (new ArrayStore) extends Repository {
+        public function supportsTags(): bool
+        {
+            return true;
+        }
+    };
+    $cache = new SurfaceCache($repository, useStoreTags: false);
+
+    $cache->remember('report', ['reports'], 60, fn (): string => 'payload');
+    $cache->invalidateTags(['reports']);
+
+    expect($repository->get('report'))->toBeNull();
+});
+
+it('refuses tags known only after building on a cache that uses store tags', function (): void {
+    (new SurfaceCache(Cache::store()))->rememberUsing('report', 60, fn (): array => ['payload', []]);
+})->throws(LogicException::class);

@@ -373,6 +373,28 @@ public static function prepare(CogentCollection $posts, Request $request): void
 }
 ```
 
+### Guarding against queries while rendering
+
+Everything a prepared resource renders is loaded before it renders, so a query in between is a lazy
+load or an accessor the plan missed. Turn the guard on where you would turn on
+`Model::preventLazyLoading()`:
+
+```php
+Cogent::guardResources(! app()->isProduction());
+```
+
+A query while a prepared resource renders, nested ones and broadcast payloads included, then throws
+`QueryWhileRenderingException` naming the innermost resource and the SQL. Report instead of throwing:
+
+```php
+Cogent::handleResourceQueriesUsing(function (string $resource, QueryExecuted $query): void {
+    logger()->warning("{$resource} queried while rendering", ['sql' => $query->sql]);
+});
+```
+
+A guarded resource is encoded before the guard is lifted, so it returns plain arrays from
+`resolve()`, as a response would encode them.
+
 ### Caching the output
 
 `#[Remember]` caches what a resource renders, or call `remember()` on a resource or collection. A

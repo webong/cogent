@@ -14,6 +14,7 @@ use Webong\Cogent\Attributes\Remember;
 use Webong\Cogent\Cogent;
 use Webong\Cogent\Resources\OutputCache;
 use Webong\Cogent\Resources\PreparedResourceCollection;
+use Webong\Cogent\Resources\RenderGuard;
 use Webong\Cogent\Resources\ResourcePayload;
 use Webong\Cogent\Resources\ResourcePlan;
 use Webong\Cogent\Resources\ResourcePreparer;
@@ -75,7 +76,7 @@ trait PreparesResources
         if ($remember === null || $models === null) {
             $this->prepareOnce($request);
 
-            return parent::resolve($request);
+            return RenderGuard::watch(static::class, fn (): array => parent::resolve($request));
         }
 
         return Container::getInstance()->make(OutputCache::class)->remember(
@@ -86,7 +87,7 @@ trait PreparesResources
             function () use ($request): array {
                 $this->prepareOnce($request);
 
-                return ResourcePayload::encode(parent::resolve($request));
+                return ResourcePayload::encode(RenderGuard::watch(static::class, fn (): array => parent::resolve($request)));
             },
         );
     }

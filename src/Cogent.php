@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace Webong\Cogent;
 
+use Closure;
+use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Webong\Cogent\Resources\RenderGuard;
 
 /**
  * Application wide Cogent settings, meant for a service provider's boot().
@@ -39,8 +42,28 @@ final class Cogent
         )));
     }
 
+    /**
+     * Report queries a prepared resource runs while it renders, like
+     * Model::preventLazyLoading() does for lazy loads. Meant for local and testing.
+     */
+    public static function guardResources(bool $value = true): void
+    {
+        RenderGuard::enable($value);
+    }
+
+    /**
+     * Handle a query while rendering instead of throwing QueryWhileRenderingException.
+     *
+     * @param  (Closure(class-string, QueryExecuted): void)|null  $handler
+     */
+    public static function handleResourceQueriesUsing(?Closure $handler): void
+    {
+        RenderGuard::handleUsing($handler);
+    }
+
     public static function flush(): void
     {
         self::$includeParameter = 'include';
+        RenderGuard::flush();
     }
 }

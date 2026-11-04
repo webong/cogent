@@ -10,10 +10,6 @@ use Webong\Cogent\Tests\Fixtures\Models\BroadcastingPost;
 use Webong\Cogent\Tests\Fixtures\Models\User;
 
 beforeEach(function (): void {
-    if (! supportsUseResource()) {
-        $this->markTestSkipped('BroadcastingPost finds its resource with #[UseResource], which needs Laravel 12');
-    }
-
     ResourcePlan::flush();
 
     $this->broadcaster = new CapturingBroadcaster;

@@ -53,7 +53,7 @@ it('renders models and collections through their resources', function (): void {
             ],
             'reason' => 'typo',
         ]);
-})->skip(! supportsUseResource(), '#[UseResource] needs Laravel 12');
+});
 
 it('sends the resource payload through the broadcaster', function (): void {
     $broadcaster = new CapturingBroadcaster;
@@ -91,7 +91,7 @@ it('broadcasts a model event as the model resource', function (): void {
         'author' => ['id' => 1, 'name' => 'Ada', 'tags' => [], 'posts_count' => 1],
         'comments_count' => 2,
     ]);
-})->skip(! supportsUseResource(), '#[UseResource] needs Laravel 12');
+});
 
 it('keeps Laravel\'s model event payload for models without a resource', function (): void {
     $user = new class extends User {
@@ -129,7 +129,7 @@ it('reports oversized model broadcasts through a handler and still sends them', 
 
     expect($payload)->toHaveKey('title')
         ->and($reported)->toBe([[Webong\Cogent\Tests\Fixtures\Models\BroadcastingPost::class, true]]);
-})->skip(! supportsUseResource(), '#[UseResource] needs Laravel 12');
+});
 
 it('lets payloads under the limit through', function (): void {
     Webong\Cogent\Cogent::limitBroadcasts();

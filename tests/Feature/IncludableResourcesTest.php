@@ -86,8 +86,8 @@ it('passes nested includes on to the resource that renders the relation', functi
     $data = includeResponse(['include' => 'author.posts,comments']);
 
     // posts, author, tags, the author's posts, post counts, comments and, for
-    // CommentResource found through #[UseResource] on Laravel 12, every comment's post.
-    expect($queries())->toBe(supportsUseResource() ? 7 : 6)
+    // CommentResource found through #[UseResource], every comment's post.
+    expect($queries())->toBe(7)
         ->and($data[1]['author']['posts'])->toBe(['First post', 'Second post'])
         ->and($data[1]['comments'])->toBe(['Comment #1', 'Comment #2']);
 });

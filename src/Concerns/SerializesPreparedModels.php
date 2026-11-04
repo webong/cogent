@@ -56,12 +56,8 @@ trait SerializesPreparedModels
      */
     public function restoreModel($value)
     {
-        // getClass() resolves morph aliases; Laravel 11 only has the class property.
-        /** @phpstan-ignore function.alreadyNarrowedType */
-        $class = method_exists($value, 'getClass') ? $value->getClass() : $value->class;
-
         $model = $this->getQueryForModelRestoration(
-            (new $class)->setConnection($value->connection),
+            (new ($value->getClass()))->setConnection($value->connection),
             $value->id,
         )->useWritePdo()->firstOrFail();
 

@@ -7,7 +7,6 @@ namespace Webong\Cogent\Resources;
 use Illuminate\Database\Eloquent\Attributes\UseResource;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Resources\Json\JsonResource;
-use Illuminate\Support\Str;
 use ReflectionClass;
 use Webong\Cogent\Attributes\Counts;
 use Webong\Cogent\Attributes\Includable;
@@ -94,7 +93,9 @@ final class ResourcePlan
 
         // guessResourceName() arrived with toResource() in Laravel 12.
         /** @phpstan-ignore function.alreadyNarrowedType */
-        array_push($candidates, ...(method_exists($model, 'guessResourceName') ? $model::guessResourceName() : self::conventionalResources($model)));
+        if (method_exists($model, 'guessResourceName')) {
+            array_push($candidates, ...$model::guessResourceName());
+        }
 
         foreach ($candidates as $candidate) {
             if (class_exists($candidate) && is_subclass_of($candidate, JsonResource::class)) {
@@ -103,27 +104,6 @@ final class ResourcePlan
         }
 
         return self::$resources[$model] = null;
-    }
-
-    /**
-     * The App\Http\Resources names Laravel 12's guessResourceName() derives from a
-     * model in App\Models, for Laravel 11.
-     *
-     * @param  class-string<Model>  $model
-     * @return list<string>
-     */
-    private static function conventionalResources(string $model): array
-    {
-        if (! str_contains($model, '\\Models\\')) {
-            return [];
-        }
-
-        $namespace = Str::before($model, '\\Models\\');
-        $relative = Str::after($model, '\\Models\\');
-        $subNamespace = str_contains($relative, '\\') ? Str::beforeLast($relative, '\\').'\\' : '';
-        $resource = $namespace.'\\Http\\Resources\\'.$subNamespace.class_basename($model);
-
-        return [$resource.'Resource', $resource];
     }
 
     /**

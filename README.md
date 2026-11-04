@@ -35,7 +35,7 @@ required to get started.
 | `GraphRelations`         | `related`, `shareRelation`                                                                                                   |
 | `IncludesRelations`      | `include`, `includeMissing`, `includeMissingMorph`                                                                           |
 | `BatchesRelations`       | `batchCount`, `batchAggregateCount`                                                                                          |
-| `BroadcastsAsResource`   | `broadcastWith()` on a model with `BroadcastsEvents`, sending the model's resource                                          |
+| `BroadcastsAsResource`   | Laravel's `BroadcastsEvents`, sending each model event as the model's resource                                              |
 | `BroadcastsResources`    | `broadcastWith()` that renders an event's models through their resources                                                   |
 | `SerializesPreparedModels` | a drop-in for `SerializesModels` that restores queued models through their resource plans                             |
 | `SnapshotsBroadcasts`    | renders the broadcast payload when an event is queued, so the worker runs no query                                          |
@@ -462,16 +462,26 @@ final class PostUpdated implements ShouldBroadcast
 
 Models without a resource fall back to `toArray()`.
 
-For models that broadcast their own events with Laravel's `BroadcastsEvents`, add
-`BroadcastsAsResource` and every model event is sent as the model's resource:
+For models that broadcast their own events, use `BroadcastsAsResource` in place of Laravel's
+`BroadcastsEvents`. It is the same trait, but every model event is sent as the model's resource:
 
 ```php
 #[UseResource(PostResource::class)]
 class Post extends Model
 {
     use BroadcastsAsResource;
-    use BroadcastsEvents;
 }
+```
+
+Saving many models broadcasts one event each, and each one prepares its model on its own. Inside
+`Cogent::batchBroadcasts()`, model events are held back until the callback returns, every model is
+prepared in one pass per class, and each event is sent as a snapshot of its channels, name and
+payload, so the worker runs no query. Nothing is sent when the callback throws.
+
+```php
+Cogent::batchBroadcasts(function () use ($posts): void {
+    $posts->each->update(['published' => true]);
+});
 ```
 
 Pusher accepts 10KB per message and Reverb 10,000 bytes by default. Check payloads built from

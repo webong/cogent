@@ -8,6 +8,7 @@ use Closure;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Webong\Cogent\Broadcasting\BroadcastBatch;
 use Webong\Cogent\Resources\BroadcastLimit;
 use Webong\Cogent\Resources\RenderGuard;
 
@@ -80,6 +81,21 @@ final class Cogent
     public static function handleOversizedBroadcastsUsing(?Closure $handler): void
     {
         BroadcastLimit::handleUsing($handler);
+    }
+
+    /**
+     * Hold model broadcasts back while the callback runs, then prepare every model
+     * they render in one pass and send each one as a snapshot. Nothing is sent
+     * when the callback throws.
+     *
+     * @template TReturn
+     *
+     * @param  Closure(): TReturn  $callback
+     * @return TReturn
+     */
+    public static function batchBroadcasts(Closure $callback): mixed
+    {
+        return BroadcastBatch::run($callback);
     }
 
     public static function flush(): void

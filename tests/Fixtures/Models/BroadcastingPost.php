@@ -6,7 +6,6 @@ namespace Webong\Cogent\Tests\Fixtures\Models;
 
 use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Database\Eloquent\Attributes\UseResource;
-use Illuminate\Database\Eloquent\BroadcastsEvents;
 use Webong\Cogent\Concerns\BroadcastsAsResource;
 use Webong\Cogent\Tests\Fixtures\Resources\PostResource;
 
@@ -14,7 +13,6 @@ use Webong\Cogent\Tests\Fixtures\Resources\PostResource;
 class BroadcastingPost extends Post
 {
     use BroadcastsAsResource;
-    use BroadcastsEvents;
 
     protected $table = 'posts';
 

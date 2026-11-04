@@ -32,6 +32,11 @@ final class PostUpdated implements ShouldBroadcastNow
     ) {
     }
 
+    public function broadcastAs(): string
+    {
+        return 'post.updated';
+    }
+
     /**
      * @return list<PrivateChannel>
      */

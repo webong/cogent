@@ -4,11 +4,9 @@ declare(strict_types=1);
 
 namespace Webong\Cogent\Resources;
 
-use FilesystemIterator;
 use Illuminate\Http\Resources\Json\JsonResource;
-use RecursiveDirectoryIterator;
-use RecursiveIteratorIterator;
-use SplFileInfo;
+use Webong\Cogent\Documentation\ClassDiscovery;
+use Webong\Cogent\Documentation\ResourceSchemaInferer;
 
 /**
  * Describes what preparing resources declare, for tooling: documentation,
@@ -24,28 +22,7 @@ final class PlanExporter
      */
     public function discover(array $paths): array
     {
-        $resources = [];
-
-        foreach ($paths as $path) {
-            if (! is_dir($path)) {
-                continue;
-            }
-
-            $files = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($path, FilesystemIterator::SKIP_DOTS));
-
-            /** @var SplFileInfo $file */
-            foreach ($files as $file) {
-                $class = $file->getExtension() === 'php' ? $this->classIn($file->getPathname()) : null;
-
-                if ($class !== null && class_exists($class) && is_subclass_of($class, JsonResource::class) && ResourcePlan::prepares($class)) {
-                    $resources[] = $class;
-                }
-            }
-        }
-
-        sort($resources);
-
-        return array_values(array_unique($resources));
+        return (new ClassDiscovery)->in($paths, static fn (string $class): bool => is_subclass_of($class, JsonResource::class) && ResourcePlan::prepares($class));
     }
 
     /**
@@ -86,13 +63,18 @@ final class PlanExporter
      */
     public function openApi(array $resources, string $parameter = 'include'): array
     {
+        if (! ResourceSchemaInferer::available()) {
+            throw new \RuntimeException('Install dedoc/scramble to infer resource schemas: composer require --dev dedoc/scramble');
+        }
+
+        $inferred = (new ResourceSchemaInferer)->infer($resources);
         $parameters = [];
         $plans = [];
 
         foreach ($resources as $resource) {
             $plan = $this->describe($resource);
             $name = class_basename($resource);
-            $plans[$name] = $plan;
+            $plans[$name] = $plan + ['schema' => $inferred['references'][$resource]];
 
             if ($plan['requestable'] === []) {
                 continue;
@@ -117,7 +99,7 @@ final class PlanExporter
             'openapi' => '3.1.0',
             'info' => ['title' => 'Cogent resource plans', 'version' => '1.0.0'],
             'paths' => (object) [],
-            'components' => ['parameters' => (object) $parameters],
+            'components' => ['parameters' => (object) $parameters, 'schemas' => (object) $inferred['schemas']],
             'x-cogent' => ['resources' => (object) $plans],
         ];
     }
@@ -164,70 +146,4 @@ final class PlanExporter
         return $paths;
     }
 
-    /**
-     * Read the class a file declares from its namespace and class statements.
-     */
-    private function classIn(string $file): ?string
-    {
-        $tokens = token_get_all((string) file_get_contents($file));
-        $namespace = '';
-
-        foreach ($tokens as $index => $token) {
-            if (! is_array($token)) {
-                continue;
-            }
-
-            if ($token[0] === T_NAMESPACE) {
-                $namespace = $this->nextName($tokens, $index);
-            }
-
-            if ($token[0] === T_CLASS && ! $this->isClassConstant($tokens, $index)) {
-                $name = $this->nextName($tokens, $index);
-
-                return $name === '' ? null : mb_ltrim($namespace.'\\'.$name, '\\');
-            }
-        }
-
-        return null;
-    }
-
-    /**
-     * @param  array<int, mixed>  $tokens
-     */
-    private function nextName(array $tokens, int $index): string
-    {
-        $count = count($tokens);
-
-        for ($next = $index + 1; $next < $count; $next++) {
-            $token = $tokens[$next];
-
-            if (is_array($token) && in_array($token[0], [T_STRING, T_NAME_QUALIFIED], true)) {
-                return $token[1];
-            }
-
-            if ($token === ';' || $token === '{' || $token === '(') {
-                return '';
-            }
-        }
-
-        return '';
-    }
-
-    /**
-     * @param  array<int, mixed>  $tokens
-     */
-    private function isClassConstant(array $tokens, int $index): bool
-    {
-        for ($previous = $index - 1; $previous >= 0; $previous--) {
-            $token = $tokens[$previous];
-
-            if (is_array($token) && $token[0] === T_WHITESPACE) {
-                continue;
-            }
-
-            return (is_array($token) && $token[0] === T_DOUBLE_COLON) || (is_array($token) && $token[0] === T_NEW);
-        }
-
-        return false;
-    }
 }

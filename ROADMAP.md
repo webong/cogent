@@ -16,6 +16,7 @@ Cogent across the whole path of a Laravel object: Request, Event, Output and Bro
 - [x] Broadcast snapshots: render the payload when the event is queued (Event, Broadcast)
 - [x] Batch model broadcasts: prepare every model in one pass with `Cogent::batchBroadcasts()` (Event, Broadcast)
 - [x] Export resource plans: `php artisan cogent:plans --json` (Docs)
-- [x] OpenAPI components: `include` parameters and plans with `cogent:plans --openapi` (Docs)
+- [x] OpenAPI components: include parameters, plans and Scramble-inferred response schemas (Docs)
+- [x] AsyncAPI: channels, event names and resource payloads with `cogent:asyncapi` (Docs)
 - [x] Benchmark plain resources against prepared and cached ones, numbers in the README (Docs)
 - [x] Require Laravel 12: Laravel 11 has open security advisories that block normal Composer installs (Compatibility)

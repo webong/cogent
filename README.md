@@ -450,9 +450,24 @@ php artisan cogent:plans --openapi
 ```
 
 `--openapi` prints OpenAPI 3.1 components: an `include` query parameter for every resource a request
-can include relations on, its values limited to the allowed paths, and each plan under `x-cogent`.
-Reference a parameter from an operation with `{"$ref": "#/components/parameters/PostResourceInclude"}`.
-Response schemas are left to a generator that reads `toArray()`.
+can include relations on, its values limited to the allowed paths, each plan under `x-cogent`, and
+response schemas inferred from `toArray()` by Scramble. Reference a parameter from an operation with
+`{"$ref": "#/components/parameters/PostResourceInclude"}` and a response schema with
+`{"$ref": "#/components/schemas/PostResource"}`. This optional documentation integration requires
+`composer require --dev dedoc/scramble`.
+
+### Broadcast schemas
+
+With Scramble installed, `cogent:asyncapi` prints AsyncAPI 3.0 for events using `BroadcastsResources`
+or `SnapshotsBroadcasts`, and models using `BroadcastsAsResource`:
+
+```bash
+php artisan cogent:asyncapi --events-path=app/Events --models-path=app/Models
+```
+
+The document includes event names from `broadcastAs()`, inferred resource payloads, and channel types.
+Channel addresses are extracted without constructing events. Runtime-dependent parts are marked
+`{parameter}` with `x-cogent.dynamic: true`; add or refine these addresses in the generated document.
 
 ## Broadcasting
 

@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Support\ServiceProvider;
 use Webong\Cogent\Cache\CacheKeyBuilder;
+use Webong\Cogent\Console\AsyncApiCommand;
 use Webong\Cogent\Console\PlansCommand;
 use Webong\Cogent\Cache\SurfaceCache;
 use Webong\Cogent\Resources\OutputCache;
@@ -72,7 +73,7 @@ class CogentServiceProvider extends ServiceProvider
         CachedRelationMacro::register();
 
         if ($this->app->runningInConsole()) {
-            $this->commands([PlansCommand::class]);
+            $this->commands([PlansCommand::class, AsyncApiCommand::class]);
         }
 
         $events = $this->app->make(Dispatcher::class);

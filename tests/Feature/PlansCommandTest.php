@@ -70,6 +70,17 @@ it('describes include parameters as OpenAPI components', function (): void {
         ->and(((array) $document['x-cogent']['resources'])['CommentResource']['includes'])->toBe(['post' => null]);
 });
 
+it('infers resource response schemas with Scramble', function (): void {
+    $document = (new PlanExporter)->openApi([PostResource::class]);
+
+    $document = json_decode(json_encode($document, JSON_THROW_ON_ERROR), true, flags: JSON_THROW_ON_ERROR);
+
+    expect($document['components']['schemas'])->toHaveKey('PostResource')
+        ->and($document['components']['schemas']['PostResource']['properties']['title']['type'])->toBe('string')
+        ->and($document['components']['schemas']['PostResource']['properties']['author']['anyOf'][0]['$ref'])
+        ->toBe('#/components/schemas/UserResource');
+});
+
 it('prints OpenAPI components', function (): void {
     Artisan::call('cogent:plans', ['--path' => [fixtureResources()], '--openapi' => true]);
 

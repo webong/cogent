@@ -32,6 +32,9 @@
         "orchestra/testbench": "^10.0",
         "pestphp/pest": "^3.0|^4.0"
     },
+    "suggest": {
+        "dedoc/scramble": "Infer resource response and broadcast payload schemas for OpenAPI and AsyncAPI exports."
+    },
     "autoload": {
         "psr-4": {
             "Webong\\Cogent\\": "src/"

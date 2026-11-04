@@ -6,6 +6,7 @@ namespace Webong\Cogent\Console;
 
 use Illuminate\Console\Command;
 use Webong\Cogent\Cogent;
+use Webong\Cogent\Documentation\ResourceSchemaInferer;
 use Webong\Cogent\Resources\PlanExporter;
 
 final class PlansCommand extends Command
@@ -16,7 +17,7 @@ final class PlansCommand extends Command
     protected $signature = 'cogent:plans
         {--path=* : Directories to look for resources in, app/Http/Resources by default}
         {--json : Print the plans as JSON}
-        {--openapi : Print OpenAPI 3.1 components for the include parameters and plans}';
+        {--openapi : Print OpenAPI 3.1 include parameters, plans and resource schemas}';
 
     /**
      * @var string
@@ -31,6 +32,12 @@ final class PlansCommand extends Command
         $plans = array_map($exporter->describe(...), $exporter->discover($paths));
 
         if ($this->option('openapi')) {
+            if (! ResourceSchemaInferer::available()) {
+                $this->components->error('Install dedoc/scramble to infer resource schemas: composer require --dev dedoc/scramble');
+
+                return self::FAILURE;
+            }
+
             $this->line((string) json_encode(
                 $exporter->openApi(array_column($plans, 'resource'), Cogent::includeParameterName()),
                 JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR,

@@ -65,7 +65,7 @@ it('sends the resource payload through the broadcaster', function (): void {
 
     expect($broadcaster->broadcasts)->toHaveCount(1)
         ->and($broadcaster->broadcasts[0]['channels'])->toBe(['private-posts.1'])
-        ->and($broadcaster->broadcasts[0]['event'])->toBe(PostUpdated::class)
+        ->and($broadcaster->broadcasts[0]['event'])->toBe('post.updated')
         ->and($broadcaster->broadcasts[0]['payload']['post']['comments_count'])->toBe(2)
         ->and($broadcaster->broadcasts[0]['payload'])->toHaveKey('socket');
 });

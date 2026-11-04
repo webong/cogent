@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Support\ServiceProvider;
 use Webong\Cogent\Cache\CacheKeyBuilder;
+use Webong\Cogent\Console\PlansCommand;
 use Webong\Cogent\Cache\SurfaceCache;
 use Webong\Cogent\Resources\OutputCache;
 use Webong\Cogent\Resources\RenderGuard;
@@ -69,6 +70,10 @@ class CogentServiceProvider extends ServiceProvider
     public function boot(): void
     {
         CachedRelationMacro::register();
+
+        if ($this->app->runningInConsole()) {
+            $this->commands([PlansCommand::class]);
+        }
 
         $events = $this->app->make(Dispatcher::class);
 

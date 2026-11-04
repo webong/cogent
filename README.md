@@ -437,6 +437,17 @@ what to forget; saving a model nobody rendered costs one cache read. Changes Elo
 such as query builder updates and pivot changes, and counts loaded outside the resource with
 `withCount()`, are left to the TTL.
 
+### Listing plans
+
+`cogent:plans` lists what every preparing resource in `app/Http/Resources` loads, counts and caches,
+and every `?include=` path a request may name, following the resources a plan maps relations to.
+`--json` prints the same for tooling, such as API documentation.
+
+```bash
+php artisan cogent:plans
+php artisan cogent:plans --path=app/Http/Resources/Api --json
+```
+
 ## Broadcasting
 
 `BroadcastsResources` builds `broadcastWith()` from an event's public properties, as Laravel does

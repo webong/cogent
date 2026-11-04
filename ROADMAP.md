@@ -15,11 +15,11 @@ Cogent across the whole path of a Laravel object: Request, Event, Output and Bro
 - [x] Dev guard: check broadcast payloads against the driver limit (Broadcast)
 - [x] Broadcast snapshots: render the payload when the event is queued (Event, Broadcast)
 - [x] Batch model broadcasts: prepare every model in one pass with `Cogent::batchBroadcasts()` (Event, Broadcast)
+- [x] Export resource plans: `php artisan cogent:plans --json` (Docs)
 
 ## Next
 
-1. [ ] Export resource plans: `php artisan cogent:plans --json` (Docs)
-2. [ ] OpenAPI: `include` parameters, optional relations and counts from plans (Docs)
-3. [ ] AsyncAPI: channels, event names and payloads from broadcast resources (Docs)
-4. [ ] Run the suite against Laravel 11 (Compatibility)
-5. [ ] Benchmark plain resources against prepared and cached ones, numbers in the README (Docs)
+1. [ ] OpenAPI: `include` parameters, optional relations and counts from plans (Docs)
+2. [ ] AsyncAPI: channels, event names and payloads from broadcast resources (Docs)
+3. [ ] Run the suite against Laravel 11 (Compatibility)
+4. [ ] Benchmark plain resources against prepared and cached ones, numbers in the README (Docs)

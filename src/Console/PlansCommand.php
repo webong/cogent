@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Webong\Cogent\Console;
 
 use Illuminate\Console\Command;
+use Webong\Cogent\Cogent;
 use Webong\Cogent\Resources\PlanExporter;
 
 final class PlansCommand extends Command
@@ -14,7 +15,8 @@ final class PlansCommand extends Command
      */
     protected $signature = 'cogent:plans
         {--path=* : Directories to look for resources in, app/Http/Resources by default}
-        {--json : Print the plans as JSON}';
+        {--json : Print the plans as JSON}
+        {--openapi : Print OpenAPI 3.1 components for the include parameters and plans}';
 
     /**
      * @var string
@@ -27,6 +29,15 @@ final class PlansCommand extends Command
         $paths = $this->option('path') ?: [$this->laravel->path('Http/Resources')];
 
         $plans = array_map($exporter->describe(...), $exporter->discover($paths));
+
+        if ($this->option('openapi')) {
+            $this->line((string) json_encode(
+                $exporter->openApi(array_column($plans, 'resource'), Cogent::includeParameterName()),
+                JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR,
+            ));
+
+            return self::SUCCESS;
+        }
 
         if ($this->option('json')) {
             $this->line((string) json_encode($plans, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR));

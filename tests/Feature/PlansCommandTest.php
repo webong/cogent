@@ -58,3 +58,23 @@ it('prints the plans as a table', function (): void {
         ->expectsOutputToContain('RememberedPostResource')
         ->assertSuccessful();
 });
+
+it('describes include parameters as OpenAPI components', function (): void {
+    $document = (new PlanExporter)->openApi([IncludablePostResource::class, CommentResource::class], 'with');
+    $parameters = (array) $document['components']['parameters'];
+
+    expect($document['openapi'])->toBe('3.1.0')
+        ->and(array_keys($parameters))->toBe(['IncludablePostResourceInclude'])
+        ->and($parameters['IncludablePostResourceInclude'])->toMatchArray(['name' => 'with', 'in' => 'query', 'explode' => false])
+        ->and($parameters['IncludablePostResourceInclude']['schema']['items']['enum'])->toBe(['author', 'author.posts', 'comments'])
+        ->and(((array) $document['x-cogent']['resources'])['CommentResource']['includes'])->toBe(['post' => null]);
+});
+
+it('prints OpenAPI components', function (): void {
+    Artisan::call('cogent:plans', ['--path' => [fixtureResources()], '--openapi' => true]);
+
+    $document = json_decode(Artisan::output(), true, flags: JSON_THROW_ON_ERROR);
+
+    expect($document['components']['parameters'])->toHaveKey('IncludablePostResourceInclude')
+        ->and($document['components']['parameters']['IncludablePostResourceInclude']['name'])->toBe('include');
+});

@@ -446,7 +446,13 @@ and every `?include=` path a request may name, following the resources a plan ma
 ```bash
 php artisan cogent:plans
 php artisan cogent:plans --path=app/Http/Resources/Api --json
+php artisan cogent:plans --openapi
 ```
+
+`--openapi` prints OpenAPI 3.1 components: an `include` query parameter for every resource a request
+can include relations on, its values limited to the allowed paths, and each plan under `x-cogent`.
+Reference a parameter from an operation with `{"$ref": "#/components/parameters/PostResourceInclude"}`.
+Response schemas are left to a generator that reads `toArray()`.
 
 ## Broadcasting
 

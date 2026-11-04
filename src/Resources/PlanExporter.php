@@ -76,6 +76,53 @@ final class PlanExporter
     }
 
     /**
+     * OpenAPI 3.1 components for the given resources: an include query parameter
+     * for each resource a request can include relations on, and each plan as an
+     * x-cogent extension. Reference a parameter from an operation with
+     * {"$ref": "#/components/parameters/PostResourceInclude"}.
+     *
+     * @param  list<class-string>  $resources
+     * @return array<string, mixed>
+     */
+    public function openApi(array $resources, string $parameter = 'include'): array
+    {
+        $parameters = [];
+        $plans = [];
+
+        foreach ($resources as $resource) {
+            $plan = $this->describe($resource);
+            $name = class_basename($resource);
+            $plans[$name] = $plan;
+
+            if ($plan['requestable'] === []) {
+                continue;
+            }
+
+            $parameters[$name.'Include'] = [
+                'name' => $parameter,
+                'in' => 'query',
+                'required' => false,
+                'description' => 'Relations to include, comma separated. Anything else is ignored.',
+                'style' => 'form',
+                'explode' => false,
+                'schema' => [
+                    'type' => 'array',
+                    'items' => ['type' => 'string', 'enum' => $plan['requestable']],
+                    'uniqueItems' => true,
+                ],
+            ];
+        }
+
+        return [
+            'openapi' => '3.1.0',
+            'info' => ['title' => 'Cogent resource plans', 'version' => '1.0.0'],
+            'paths' => (object) [],
+            'components' => ['parameters' => (object) $parameters],
+            'x-cogent' => ['resources' => (object) $plans],
+        ];
+    }
+
+    /**
      * Every ?include= path a request may name, through the resources that render
      * each relation. Nested resources are followed when a plan maps them.
      *

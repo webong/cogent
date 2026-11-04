@@ -27,6 +27,11 @@ final class Cogent
         self::$includeParameter = $name;
     }
 
+    public static function includeParameterName(): string
+    {
+        return self::$includeParameter;
+    }
+
     /**
      * The relation paths a request asks for, from ?include=a,b.c or ?include[]=a.
      *

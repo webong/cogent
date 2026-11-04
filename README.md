@@ -338,7 +338,8 @@ return new PostResource($post);
   relations that are not has-one-or-many. Counts that are already present are left alone.
 - Map a relation to the resource that renders it and that resource's plan runs on the related models
   too, in the same pass. Without a map, Cogent finds it the way `toResource()` does: `#[UseResource]`
-  on the model, then the `App\Http\Resources` naming convention.
+  on the model, then the `App\Http\Resources` naming convention. `#[UseResource]` needs Laravel 12;
+  the naming convention works on Laravel 11 too.
 - `collection()`, `toResourceCollection()`, paginators and `ResourceCollection` subclasses that use the
   trait are all prepared. A single resource prepares its one model.
 

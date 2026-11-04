@@ -51,3 +51,11 @@ function createComments(Post $post, int $count = 1): SupportCollection
 
     return $comments;
 }
+
+/**
+ * #[UseResource] and toResourceCollection() arrived in Laravel 12.
+ */
+function supportsUseResource(): bool
+{
+    return class_exists(\Illuminate\Database\Eloquent\Attributes\UseResource::class);
+}

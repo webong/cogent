@@ -46,7 +46,8 @@ it('restores models with what their resources render', function (): void {
         ->and($restored->post->getAttributes())->toHaveKey('comments_count', 2)
         ->and($restored->editor->getAttributes())->toHaveKey('posts_count', 1)
         ->and($restored->editor->tags->pluck('name')->all())->toBe(['math'])
-        ->and($restored->comments->every(fn (Comment $comment): bool => $comment->relationLoaded('post')))->toBeTrue();
+        // CommentResource is found through #[UseResource], from Laravel 12.
+        ->and($restored->comments->every(fn (Comment $comment): bool => $comment->relationLoaded('post')))->toBe(supportsUseResource());
 });
 
 it('broadcasts a restored event without querying again', function (): void {

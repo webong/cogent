@@ -91,6 +91,11 @@ it('shares one author instance across the posts it was loaded for', function ():
     expect($collection[0]->author)->toBe($collection[2]->author);
 });
 
+it('finds a resource by the App\\Http\\Resources naming convention', function (): void {
+    expect(ResourcePlan::resourceFor(Webong\Cogent\Tests\Fixtures\Conventions\Models\Billing\Invoice::class))
+        ->toBe(Webong\Cogent\Tests\Fixtures\Conventions\Http\Resources\Billing\InvoiceResource::class);
+});
+
 it('prepares collections built by toResourceCollection() and paginated collections', function (): void {
     seedAuthors(3);
 
@@ -106,7 +111,7 @@ it('prepares collections built by toResourceCollection() and paginated collectio
     $data = resolveResponse(Post::query()->orderBy('id')->get()->toResourceCollection(PostResource::class));
 
     expect($data['data'][2]['author']['name'])->toBe('Ada');
-});
+})->skip(! supportsUseResource(), 'toResourceCollection() needs Laravel 12');
 
 it('prepares a ResourceCollection subclass through the resource it collects', function (): void {
     seedAuthors(2);
@@ -169,7 +174,7 @@ it('prepares nested resources found through #[UseResource] on the related model'
     expect($queries())->toBe(2)
         ->and($data['data'][2]['comments'])->toHaveCount(3)
         ->and($data['data'][2]['comments'][0])->toMatchArray(['body' => 'Comment #1', 'post_title' => 'Post 3']);
-});
+})->skip(! supportsUseResource(), '#[UseResource] needs Laravel 12');
 
 it('calls a static prepare() hook once with every model and the request', function (): void {
     seedAuthors(3);

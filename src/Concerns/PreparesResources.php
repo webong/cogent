@@ -76,7 +76,7 @@ trait PreparesResources
         if ($remember === null || $models === null) {
             $this->prepareOnce($request);
 
-            return RenderGuard::watch(static::class, fn (): array => parent::resolve($request));
+            return RenderGuard::watch($this->collectedResource() ?? static::class, fn (): array => parent::resolve($request));
         }
 
         return Container::getInstance()->make(OutputCache::class)->remember(
@@ -87,7 +87,7 @@ trait PreparesResources
             function () use ($request): array {
                 $this->prepareOnce($request);
 
-                return ResourcePayload::encode(RenderGuard::watch(static::class, fn (): array => parent::resolve($request)));
+                return ResourcePayload::encode(RenderGuard::watch($this->collectedResource() ?? static::class, fn (): array => parent::resolve($request)));
             },
         );
     }

@@ -18,10 +18,10 @@ Cogent across the whole path of a Laravel object: Request, Event, Output and Bro
 - [x] Export resource plans: `php artisan cogent:plans --json` (Docs)
 - [x] OpenAPI components: `include` parameters and plans with `cogent:plans --openapi` (Docs)
 - [x] Run the suite against Laravel 11.57: fixed `ModelIdentifier`, guard blame and naming convention (Compatibility)
+- [x] Benchmark plain resources against prepared and cached ones, numbers in the README (Docs)
 
 ## Next
 
 1. [ ] Response and payload schemas: needs a decision, Scramble's analysis of `toArray()` or schemas declared on resources (Docs)
 2. [ ] AsyncAPI: channels, event names and payloads from broadcast resources (Docs)
 3. [ ] Decide on Laravel 11: every release has open security advisories, so CI can only test it with the advisory block off (Compatibility)
-4. [ ] Benchmark plain resources against prepared and cached ones, numbers in the README (Docs)

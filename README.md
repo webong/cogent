@@ -22,7 +22,7 @@ final class ConversationCollection extends Collection
 composer require webong/cogent
 ```
 
-The service provider is auto-discovered. It registers two scoped services, so nothing else is
+The service provider is auto-discovered. It registers its scoped services, so nothing else is
 required to get started.
 
 ## Concerns
@@ -35,6 +35,14 @@ required to get started.
 | `GraphRelations`         | `related`, `shareRelation`                                                                                                   |
 | `IncludesRelations`      | `include`, `includeMissing`, `includeMissingMorph`                                                                           |
 | `BatchesRelations`       | `batchCount`, `batchAggregateCount`                                                                                          |
+| `BroadcastsAsResource`   | Laravel's `BroadcastsEvents`, sending each model event as the model's resource                                              |
+| `BroadcastsResources`    | `broadcastWith()` that renders an event's models through their resources                                                   |
+| `SerializesPreparedModels` | a drop-in for `SerializesModels` that restores queued models through their resource plans                             |
+| `SnapshotsBroadcasts`    | renders the broadcast payload when an event is queued, so the worker runs no query                                          |
+| `PreparesResources`      | `#[Includes]`, `#[Includable]`, `#[Counts]` and a static `prepare()` hook, on a `JsonResource` or `ResourceCollection`       |
+
+`Webong\Cogent\CogentCollection` uses every collection concern above. Extend it for your own
+collections, or let Cogent wrap models in it when their collection does not use the concerns.
 
 `IncludesRelations` builds on `GraphRelations`, so a collection that includes relations can also read
 and share them. Every method on both traits works on relations that are already in memory: none of
@@ -290,6 +298,297 @@ When `cap` is set, the count is clamped and the truncation flag is merged into
 `truncatedAttribute[attribute]`, so several capped counts can share one attribute. The query runs
 through `Webong\Cogent\Support\EloquentBatchCounter`, which never mutates the query you hand it and
 returns a `BatchCountResult` for direct inspection.
+
+## Resources
+
+A resource declares what it renders, and Cogent loads it for every model in the collection, once,
+right before the collection is resolved. Controllers stay plain Laravel and `toArray()` keeps using
+`whenLoaded()` and `whenCounted()`.
+
+```php
+use Webong\Cogent\Attributes\Counts;
+use Webong\Cogent\Attributes\Includes;
+use Webong\Cogent\Concerns\PreparesResources;
+
+#[Includes(['author' => UserResource::class, 'channel'])]
+#[Counts('comments')]
+final class PostResource extends JsonResource
+{
+    use PreparesResources;
+
+    public function toArray(Request $request): array
+    {
+        return [
+            'id' => $this->id,
+            'author' => new UserResource($this->whenLoaded('author')),
+            'comments_count' => $this->whenCounted('comments'),
+        ];
+    }
+}
+
+return PostResource::collection(Post::query()->paginate());
+return Post::query()->get()->toResourceCollection(PostResource::class);
+return new PostResource($post);
+```
+
+- `#[Includes]` takes relation names or dotted paths. Each relation is loaded with `includeMissing()`,
+  so duplicate rows share one instance, or with `loadMissingCached()` when the model declares it
+  cacheable. Relations that are already loaded are left alone.
+- `#[Counts]` writes `{snake(relation)}_count` with `batchCount()`, falling back to `loadCount()` for
+  relations that are not has-one-or-many. Counts that are already present are left alone.
+- Map a relation to the resource that renders it and that resource's plan runs on the related models
+  too, in the same pass. Without a map, Cogent finds it the way `toResource()` does: `#[UseResource]`
+  on the model, then the `App\Http\Resources` naming convention.
+- `collection()`, `toResourceCollection()`, paginators and `ResourceCollection` subclasses that use the
+  trait are all prepared. A single resource prepares its one model.
+
+### Requested includes
+
+`#[Includable]` declares relations that load only when the request names them, with
+`?include=author,comments.post` or `?include[]=author`. Anything not declared is ignored, so a
+client can never load more than the resource allows.
+
+```php
+#[Includable(['author' => UserResource::class], 'comments')]
+final class PostResource extends JsonResource
+{
+    use PreparesResources;
+}
+```
+
+A nested path is handed to the resource that renders the relation: `?include=author.posts` loads
+`author` here and asks `UserResource` for `posts`, which it loads only if it declares
+`#[Includable('posts')]` itself. Read another parameter than `include` from a service provider:
+
+```php
+Cogent::includeParameter('with');
+```
+
+For anything the attributes cannot say, add a static `prepare()`. It runs once per resolve, with every
+model in a `CogentCollection`:
+
+```php
+public static function prepare(CogentCollection $posts, Request $request): void
+{
+    $posts->plugMissing('channel', $request->user()->channels);
+}
+```
+
+### Guarding against queries while rendering
+
+Everything a prepared resource renders is loaded before it renders, so a query in between is a lazy
+load or an accessor the plan missed. Turn the guard on where you would turn on
+`Model::preventLazyLoading()`:
+
+```php
+Cogent::guardResources(! app()->isProduction());
+```
+
+A query while a prepared resource renders, nested ones and broadcast payloads included, then throws
+`QueryWhileRenderingException` naming the innermost resource and the SQL. Report instead of throwing:
+
+```php
+Cogent::handleResourceQueriesUsing(function (string $resource, QueryExecuted $query): void {
+    logger()->warning("{$resource} queried while rendering", ['sql' => $query->sql]);
+});
+```
+
+A guarded resource is encoded before the guard is lifted, so it returns plain arrays from
+`resolve()`, as a response would encode them.
+
+### Caching the output
+
+`#[Remember]` caches what a resource renders, or call `remember()` on a resource or collection. A
+hit skips preparing and `toArray()` entirely, so the only query left is the one that fetched the
+models.
+
+```php
+#[Remember(300)]
+#[Includes(['author' => UserResource::class])]
+#[Counts('comments')]
+final class PostResource extends JsonResource
+{
+    use PreparesResources;
+
+    // Optional: anything else the output depends on.
+    public static function cacheVary(Request $request): array
+    {
+        return ['locale' => app()->getLocale()];
+    }
+}
+
+return PostResource::collection($posts);                   // #[Remember] on the resource
+return PostResource::collection($posts)->remember(60);     // or per call
+```
+
+Every authenticated user gets their own entry. Output that is the same for everyone can share one
+with `#[Remember(300, shared: true)]` or `remember(60, shared: true)`.
+
+An entry is keyed on the models rendered, in order, the requested includes, the user unless it is
+shared, and `cacheVary()`. It is
+forgotten when any of these is saved or deleted through Eloquent:
+
+- a model it rendered, or one reached through a loaded relation;
+- a row a has-one or has-many relation, or a `#[Counts]` count, read: a new comment forgets the post
+  that counted its comments.
+
+Which columns matter for each model class is kept in the cache, so a save in any later request knows
+what to forget; saving a model nobody rendered costs one cache read. Changes Eloquent does not see,
+such as query builder updates and pivot changes, and counts loaded outside the resource with
+`withCount()`, are left to the TTL.
+
+### Listing plans
+
+`cogent:plans` lists what every preparing resource in `app/Http/Resources` loads, counts and caches,
+and every `?include=` path a request may name, following the resources a plan maps relations to.
+`--json` prints the same for tooling, such as API documentation.
+
+```bash
+php artisan cogent:plans
+php artisan cogent:plans --path=app/Http/Resources/Api --json
+php artisan cogent:plans --openapi
+```
+
+`--openapi` prints OpenAPI 3.1 components: an `include` query parameter for every resource a request
+can include relations on, its values limited to the allowed paths, each plan under `x-cogent`, and
+response schemas inferred from `toArray()` by Scramble. Reference a parameter from an operation with
+`{"$ref": "#/components/parameters/PostResourceInclude"}` and a response schema with
+`{"$ref": "#/components/schemas/PostResource"}`. This optional documentation integration requires
+`composer require --dev dedoc/scramble`.
+
+### Broadcast schemas
+
+With Scramble installed, `cogent:asyncapi` prints AsyncAPI 3.0 for events using `BroadcastsResources`
+or `SnapshotsBroadcasts`, and models using `BroadcastsAsResource`:
+
+```bash
+php artisan cogent:asyncapi --events-path=app/Events --models-path=app/Models
+```
+
+The document includes event names from `broadcastAs()`, inferred resource payloads, and channel types.
+Channel addresses are extracted without constructing events. Runtime-dependent parts are marked
+`{parameter}` with `x-cogent.dynamic: true`; add or refine these addresses in the generated document.
+
+## Broadcasting
+
+`BroadcastsResources` builds `broadcastWith()` from an event's public properties, as Laravel does
+when an event has none, but renders models and Eloquent collections through their resources. Clients
+get the same shape over a websocket as over HTTP, and resources that use `PreparesResources` run
+their plan before the payload is built.
+
+```php
+use Webong\Cogent\Attributes\WithResource;
+use Webong\Cogent\Concerns\BroadcastsResources;
+
+final class PostUpdated implements ShouldBroadcast
+{
+    use BroadcastsResources;
+    use SerializesModels;
+
+    public function __construct(
+        public Post $post,                                         // #[UseResource] or App\Http\Resources\PostResource
+        #[WithResource(EditorResource::class)] public User $editor,
+    ) {}
+}
+```
+
+Models without a resource fall back to `toArray()`.
+
+For models that broadcast their own events, use `BroadcastsAsResource` in place of Laravel's
+`BroadcastsEvents`. It is the same trait, but every model event is sent as the model's resource:
+
+```php
+#[UseResource(PostResource::class)]
+class Post extends Model
+{
+    use BroadcastsAsResource;
+}
+```
+
+Saving many models broadcasts one event each, and each one prepares its model on its own. Inside
+`Cogent::batchBroadcasts()`, model events are held back until the callback returns, every model is
+prepared in one pass per class, and each event is sent as a snapshot of its channels, name and
+payload, so the worker runs no query. Nothing is sent when the callback throws.
+
+```php
+Cogent::batchBroadcasts(function () use ($posts): void {
+    $posts->each->update(['published' => true]);
+});
+```
+
+Pusher accepts 10KB per message and Reverb 10,000 bytes by default. Check payloads built from
+resources against a limit, and throw `BroadcastTooLargeException` or report through a handler:
+
+```php
+Cogent::limitBroadcasts(10_000);
+Cogent::handleOversizedBroadcastsUsing(function (object $event, int $bytes, int $limit): void {
+    logger()->warning($event::class." broadcast is {$bytes} bytes, over {$limit}");
+});
+```
+
+## Queued events and jobs
+
+Laravel's `SerializesModels` queries every restored model again and reloads its relations one by
+one, so counts and cached relations are lost on the way through the queue. Swap it for
+`SerializesPreparedModels` and restored models load what their resource renders, while the relations
+they had are read from the cache when they are cacheable:
+
+```php
+use Webong\Cogent\Concerns\SerializesPreparedModels;
+
+final class PostUpdated implements ShouldBroadcast
+{
+    use BroadcastsResources;
+    use SerializesPreparedModels;
+
+    public function __construct(
+        public Post $post,
+        #[WithResource(EditorResource::class)] public User $editor,
+    ) {}
+}
+```
+
+A restored event then builds its broadcast payload without another query. `#[WithResource]` on a
+property runs that resource's plan too.
+
+### Snapshots
+
+`SnapshotsBroadcasts`, used in place of `SerializesModels`, renders the payload when the event is
+queued, in the request that already loaded its models. Models are serialized whole with what was
+loaded for them, so `broadcastOn()` still reads them and the worker runs no query at all. The
+payload is what the models looked like at dispatch, and the job is larger.
+
+```php
+final class PostUpdated implements ShouldBroadcast
+{
+    use SnapshotsBroadcasts;
+
+    public function __construct(public Post $post) {}
+
+    public function broadcastOn(): array
+    {
+        return [new PrivateChannel("posts.{$this->post->id}")];
+    }
+}
+```
+
+## Benchmark
+
+Rendering 200 posts, each with its author, the author's tags and post count, and the post's comment
+count, on PHP 8.5 and Laravel 12.70 (`vendor/bin/pest benchmarks`):
+
+| Rendering 200 posts | Queries | Median time |
+| --- | ---: | ---: |
+| Plain resources, lazy loading | 801 | 48 ms |
+| Plain resources, eager loading by hand | 3 | 8 ms |
+| Cogent, prepared | 4 | 10 ms |
+| Cogent, cache hit | 1 | 1.3 ms |
+
+A prepared resource matches careful eager loading without the controller having to know what the
+resource renders; hand-written `withCount()` subqueries are a little faster than its grouped counts.
+A cache hit leaves only the query that fetched the posts. The data is in-memory SQLite, so every
+query is far cheaper than over a network: the query counts carry over to production, the times are a
+floor.
 
 ## Testing
 

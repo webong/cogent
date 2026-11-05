@@ -8,14 +8,15 @@ use Illuminate\Container\Container as ContainerInstance;
 use Illuminate\Contracts\Cache\Repository as CacheRepository;
 use Illuminate\Contracts\Container\Container;
 use Illuminate\Contracts\Events\Dispatcher;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Support\ServiceProvider;
 use Webong\Cogent\Cache\CacheKeyBuilder;
-use Webong\Cogent\Console\AsyncApiCommand;
 use Webong\Cogent\Console\PlansCommand;
 use Webong\Cogent\Cache\SurfaceCache;
 use Webong\Cogent\Resources\OutputCache;
+use Webong\Cogent\Resources\PreparedResourceCollection;
 use Webong\Cogent\Resources\RenderGuard;
 use Webong\Cogent\Resources\ResourcePreparer;
 use Webong\Cogent\Support\CachedRelationAttributeStore;
@@ -73,7 +74,7 @@ class CogentServiceProvider extends ServiceProvider
         CachedRelationMacro::register();
 
         if ($this->app->runningInConsole()) {
-            $this->commands([PlansCommand::class, AsyncApiCommand::class]);
+            $this->commands([PlansCommand::class]);
         }
 
         $events = $this->app->make(Dispatcher::class);
@@ -92,5 +93,9 @@ class CogentServiceProvider extends ServiceProvider
                 }
             },
         );
+
+        Collection::macro('toResourceCollection', static function (string $resource): PreparedResourceCollection {
+            return new PreparedResourceCollection($this, $resource);
+        });
     }
 }

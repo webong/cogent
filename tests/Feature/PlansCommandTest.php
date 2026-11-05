@@ -45,7 +45,7 @@ it('describes a plan with every path a request may include', function (): void {
 });
 
 it('prints the plans as JSON', function (): void {
-    Artisan::call('cogent:plans', ['--path' => [fixtureResources()], '--json' => true]);
+    Artisan::call('cogent:plans', ['--path' => [fixtureResources()], '--format' => 'json']);
 
     $plans = collect(json_decode(Artisan::output(), true, flags: JSON_THROW_ON_ERROR))->keyBy('resource');
 
@@ -82,7 +82,7 @@ it('infers resource response schemas with Scramble', function (): void {
 });
 
 it('prints OpenAPI components', function (): void {
-    Artisan::call('cogent:plans', ['--path' => [fixtureResources()], '--openapi' => true]);
+    Artisan::call('cogent:plans', ['--path' => [fixtureResources()], '--format' => 'openapi']);
 
     $document = json_decode(Artisan::output(), true, flags: JSON_THROW_ON_ERROR);
 

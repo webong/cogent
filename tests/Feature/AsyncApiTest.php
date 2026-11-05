@@ -27,7 +27,8 @@ it('describes resource broadcast channels, event names and payloads', function (
 });
 
 it('prints AsyncAPI from artisan', function (): void {
-    Artisan::call('cogent:asyncapi', [
+    Artisan::call('cogent:plans', [
+        '--format' => 'asyncapi',
         '--events-path' => [dirname(__DIR__).'/Fixtures/Events'],
         '--models-path' => [dirname(__DIR__).'/Fixtures/Models'],
         '--title' => 'Application websockets',

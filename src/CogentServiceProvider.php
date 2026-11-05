@@ -26,6 +26,7 @@ use Webong\Cogent\Support\CachedRelationAttributeStore;
 use Webong\Cogent\Support\CachedRelationMacro;
 use Webong\Cogent\Support\CachedRelationRegistry;
 use Webong\Cogent\Support\EloquentBatchCounter;
+use Webong\Cogent\Http\Middleware\RememberResponseMiddleware;
 
 class CogentServiceProvider extends ServiceProvider
 {
@@ -75,6 +76,11 @@ class CogentServiceProvider extends ServiceProvider
     public function boot(): void
     {
         CachedRelationMacro::register();
+
+        $this->app['router']->aliasMiddleware(
+            'remember.response',
+            RememberResponseMiddleware::class,
+        );
 
         if ($this->app->runningInConsole()) {
             $this->commands([PlansCommand::class]);

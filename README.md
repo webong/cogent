@@ -231,12 +231,37 @@ public function index(OutputCache $cache, Request $request)
 }
 ```
 
-- `models` — the models being rendered, in order. The cache key is built from them.
-- `vary` — anything else the output depends on (locale, viewer, filters). Each combination gets its own entry.
-- `ttl` — seconds to keep the entry.
-- `build` — returns the output array. Only runs on a cache miss (request macro and `OutputCache` only).
+### Attribute-based caching on controller methods
 
-Invalidation is automatic: saving or deleting a rendered model, or any row reached through a loaded relation or `#[Counts]`, forgets the entry.
+Configure caching declaratively with `#[RememberResponse]` on a controller method. Register the `remember.response` middleware on the route or controller:
+
+```php
+use Webong\Cogent\Attributes\RememberResponse;
+
+// In routes/web.php or routes/api.php:
+Route::get('/posts', [PostController::class, 'index'])
+    ->middleware('remember.response');
+```
+
+Then on the controller method:
+
+```php
+use Webong\Cogent\Attributes\RememberResponse;
+
+#[RememberResponse(ttl: 300, vary: ['locale', 'page'])]
+public function index(Request $request)
+{
+    $posts = Post::query()->orderBy('created_at', 'desc')->get();
+
+    return PostResource::collection($posts)->resolve($request);
+}
+```
+
+- `ttl` — seconds to keep the cached response.
+- `vary` — request input keys that differentiate the cache entry (e.g. `locale`, `page`, `filter`).
+- `shared` — one entry for everyone instead of per authenticated user.
+
+The cache key is built from the route name (or URI), route-bound models, and `vary` values. Invalidation is automatic: saving or deleting a route-bound model (or any row reached through its loaded relations) forgets the entry.
 
 ### Make sure nothing lazy-loads while rendering
 

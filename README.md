@@ -182,6 +182,37 @@ Each authenticated user gets their own entry unless you mark it shared:
 
 `#[Remember]` lives on the resource. If you want to cache an entire controller response — including anything the controller adds beyond the resource — use the `remember()` macro on the request or response, or inject `OutputCache` directly. This is an Input/Output cache: the input is the models plus anything the output varies on, and the output is the rendered array. It auto-forgets when any of those models (or rows reached through their loaded relations) is saved or deleted.
 
+#### Configuration (config/cogent.php)
+
+Cogent ships a config file with named cache surfaces, each with its own `enabled` flag and `ttl`. Surfaces follow the same domain/surface pattern used in the CRM:
+
+```php
+return [
+    'domains' => ['posts', 'users', 'comments', 'channels', 'conversations'],
+    'registry' => [
+        'posts' => ['list', 'counts', 'detail', 'scope'],
+        'users' => ['list', 'detail', 'scope'],
+        'comments' => ['list', 'counts'],
+        'channels' => ['scope'],
+        'conversations' => ['list', 'counts', 'context', 'scope', 'detail'],
+    ],
+    'surfaces' => [
+        'list' => ['enabled' => false, 'ttl' => 30],
+        'counts' => ['enabled' => false, 'ttl' => 20],
+        'context' => ['enabled' => false, 'ttl' => 60],
+        'scope' => ['enabled' => false, 'ttl' => 120],
+        'detail' => ['enabled' => false, 'ttl' => 30],
+    ],
+];
+```
+
+Enable surfaces via environment variables:
+
+```
+COGENT_LIST_CACHE_ENABLED=true
+COGENT_LIST_CACHE_TTL=30
+```
+
 Using the request macro (wraps the build closure):
 
 ```php
@@ -233,7 +264,7 @@ public function index(OutputCache $cache, Request $request)
 
 ### Attribute-based caching on controller methods
 
-Configure caching declaratively with `#[RememberResponse]` on a controller method. Register the `remember.response` middleware on the route or controller:
+Configure caching declaratively with `#[RememberResponse]` on a controller method. Register the `remember.response` middleware on the route:
 
 ```php
 use Webong\Cogent\Attributes\RememberResponse;
@@ -248,7 +279,7 @@ Then on the controller method:
 ```php
 use Webong\Cogent\Attributes\RememberResponse;
 
-#[RememberResponse(ttl: 300, vary: ['locale', 'page'])]
+#[RememberResponse(surface: 'list', domain: 'posts', vary: ['locale', 'page'])]
 public function index(Request $request)
 {
     $posts = Post::query()->orderBy('created_at', 'desc')->get();
@@ -257,11 +288,12 @@ public function index(Request $request)
 }
 ```
 
-- `ttl` — seconds to keep the cached response.
+- `surface` — named cache surface (`list`, `counts`, `detail`, `scope`, `context`). Must be enabled in `config/cogent.php`.
+- `domain` — cache domain grouping related resources (`posts`, `users`, `comments`, etc.).
 - `vary` — request input keys that differentiate the cache entry (e.g. `locale`, `page`, `filter`).
 - `shared` — one entry for everyone instead of per authenticated user.
 
-The cache key is built from the route name (or URI), route-bound models, and `vary` values. Invalidation is automatic: saving or deleting a route-bound model (or any row reached through its loaded relations) forgets the entry.
+The cache key is built from the domain, surface, route-bound models, and `vary` values. Tags are used for automatic invalidation: saving or deleting a route-bound model (or any row reached through its loaded relations) forgets the entry.
 
 ### Make sure nothing lazy-loads while rendering
 

@@ -16,6 +16,8 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\ServiceProvider;
 use Webong\Cogent\Cache\CacheKeyBuilder;
+use Webong\Cogent\Cache\CogentCacheInvalidator;
+use Webong\Cogent\Cache\CogentCacheNameBuilder;
 use Webong\Cogent\Console\PlansCommand;
 use Webong\Cogent\Cache\SurfaceCache;
 use Webong\Cogent\Resources\OutputCache;
@@ -66,6 +68,24 @@ class CogentServiceProvider extends ServiceProvider
                 $app->make(CacheRepository::class),
                 new SurfaceCache($app->make(CacheRepository::class), indexPrefix: 'cogent:output:index:', useStoreTags: false),
                 new CacheKeyBuilder,
+            ),
+        );
+
+        $this->mergeConfigFrom(
+            __DIR__.'/../config/cogent.php',
+            'cogent',
+        );
+
+        $this->app->scoped(
+            CogentCacheNameBuilder::class,
+            static fn (): CogentCacheNameBuilder => new CogentCacheNameBuilder,
+        );
+
+        $this->app->scoped(
+            CogentCacheInvalidator::class,
+            static fn (Container $app): CogentCacheInvalidator => new CogentCacheInvalidator(
+                $app->make(CacheRepository::class),
+                $app->make(CogentCacheNameBuilder::class),
             ),
         );
     }

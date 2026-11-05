@@ -10,19 +10,23 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 use Webong\Cogent\Attributes\RememberResponse;
-use Webong\Cogent\Cache\CacheKeyBuilder;
+use Webong\Cogent\Cache\CogentCacheNameBuilder;
 
 /**
- * Reads #[RememberResponse] on controller methods and caches the response.
+ * Reads #[RememberResponse] on controller methods and caches the response
+ * using the CRM-style surface/domain/tag pattern.
+ *
+ * The cache key is built from the domain, surface, route-bound models, and
+ * vary values. Tags are used for automatic invalidation when models change.
  *
  * Runs after route model binding so bound models are available for the cache
- * key and automatic invalidation.
+ * key and tags.
  */
 final class RememberResponseMiddleware
 {
     public function __construct(
         private readonly CacheRepository $cache,
-        private readonly CacheKeyBuilder $keys,
+        private readonly CogentCacheNameBuilder $nameBuilder,
     ) {}
 
     public function handle(Request $request, Closure $next): SymfonyResponse
@@ -57,6 +61,20 @@ final class RememberResponseMiddleware
 
         $config = $attribute->newInstance();
 
+        // Check if this surface is enabled and get its TTL from config.
+        $surfaces = config('cogent.surfaces', []);
+        $surfaceConfig = $surfaces[$config->surface] ?? null;
+
+        if (! $surfaceConfig || ! ($surfaceConfig['enabled'] ?? false)) {
+            return $next($request);
+        }
+
+        $ttl = (int) ($surfaceConfig['ttl'] ?? 60);
+
+        if ($ttl <= 0) {
+            return $next($request);
+        }
+
         // Vary values read from the request.
         $varyValues = [];
 
@@ -82,17 +100,39 @@ final class RememberResponseMiddleware
             }
         }
 
-        $identities = implode(',', array_map(
-            static fn (Model $model): string => $model::class . ':' . $model->getKey(),
-            $models,
-        ));
+        $modelSegments = [];
 
-        $cacheKey = $this->keys->build(
-            'cogent',
-            'controller',
-            $route->getName() ?? $route->uri(),
-            ['models' => $identities, 'vary' => $varyValues],
+        foreach ($models as $model) {
+            $modelSegments[$model::class] = $model->getKey();
+        }
+
+        $parameters = [
+            'vary' => $varyValues,
+            'models' => $modelSegments,
+        ];
+
+        $cacheKey = $this->nameBuilder->getKey(
+            domain: $config->domain,
+            surface: $config->surface,
+            parameters: $parameters,
         );
+
+        // Build tags for invalidation.
+        $tags = [
+            $this->nameBuilder->getSurfaceTag($config->surface),
+        ];
+
+        if (! $config->shared) {
+            $user = $request->user();
+
+            if ($user !== null) {
+                $tags[] = $this->nameBuilder->getDomainTag('users', $user->getAuthIdentifier());
+            }
+        }
+
+        foreach ($models as $model) {
+            $tags[] = $this->nameBuilder->getDomainTag($config->domain, $model->getKey());
+        }
 
         // Cache hit: return the stored response without running the controller.
         $cached = $this->cache->get($cacheKey);
@@ -105,11 +145,11 @@ final class RememberResponseMiddleware
             );
         }
 
-        // Cache miss: run the controller and store the response content.
+        // Cache miss: run the controller and store the response with tags.
         $response = $next($request);
 
         if ($response instanceof SymfonyResponse && $response->getStatusCode() === 200) {
-            $this->cache->put($cacheKey, $response->getContent(), $config->ttl);
+            $this->cache->tags($tags)->put($cacheKey, $response->getContent(), $ttl);
         }
 
         return $response;

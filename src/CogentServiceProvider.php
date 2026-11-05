@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Webong\Cogent;
 
+use Closure;
 use Illuminate\Container\Container as ContainerInstance;
 use Illuminate\Contracts\Cache\Repository as CacheRepository;
 use Illuminate\Contracts\Container\Container;
@@ -12,6 +13,7 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\ServiceProvider;
 use Webong\Cogent\Cache\CacheKeyBuilder;
 use Webong\Cogent\Console\PlansCommand;
@@ -111,6 +113,38 @@ class CogentServiceProvider extends ServiceProvider
              */
             Request::macro('remember', static function (string $resource, array $models, array $vary = [], int $ttl = 60, Closure $build): array {
                 return app(OutputCache::class)->remember($resource, $models, $vary, $ttl, $build);
+            });
+        }
+
+        if (! Response::hasMacro('remember')) {
+            /**
+             * Cache a response's content by resource, models, and vary params.
+             * On a cache hit, returns a new Response with the cached content.
+             * On a miss, stores the current content for future requests.
+             *
+             * @param  array<string, mixed>  $vary
+             * @return static
+             */
+            Response::macro('remember', static function (string $resource, array $models, array $vary = [], int $ttl = 60): self {
+                $cache = app(CacheRepository::class);
+                $keys = app(CacheKeyBuilder::class);
+
+                $identities = implode(',', array_map(
+                    static fn (Model $model): string => $model::class.':'.$model->getKey(),
+                    $models,
+                ));
+
+                $key = $keys->build('cogent', 'output', $resource, ['models' => $identities, 'vary' => $vary]);
+
+                $cached = $cache->get($key);
+
+                if ($cached !== null && is_string($cached)) {
+                    return new static($cached, $this->getStatusCode(), $this->headers->all());
+                }
+
+                $cache->put($key, $this->getContent(), $ttl);
+
+                return $this;
             });
         }
     }

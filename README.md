@@ -180,9 +180,9 @@ Each authenticated user gets their own entry unless you mark it shared:
 
 ### Controller-level caching (Input / Output)
 
-`#[Remember]` lives on the resource. If you want to cache an entire controller response — including anything the controller adds beyond the resource — use the `remember()` macro on the request, or inject `OutputCache` directly. This is an Input/Output cache: the input is the models plus anything the output varies on, and the output is the rendered array. It auto-forgets when any of those models (or rows reached through their loaded relations) is saved or deleted.
+`#[Remember]` lives on the resource. If you want to cache an entire controller response — including anything the controller adds beyond the resource — use the `remember()` macro on the request or response, or inject `OutputCache` directly. This is an Input/Output cache: the input is the models plus anything the output varies on, and the output is the rendered array. It auto-forgets when any of those models (or rows reached through their loaded relations) is saved or deleted.
 
-Using the request macro (simplest):
+Using the request macro (wraps the build closure):
 
 ```php
 public function index(Request $request)
@@ -195,6 +195,19 @@ public function index(Request $request)
         vary: ['locale' => app()->getLocale(), 'page' => $request->input('page')],
         ttl: 300,
         build: fn () => PostResource::collection($posts)->resolve($request),
+    );
+}
+```
+
+Using the response macro (wraps an already-built response):
+
+```php
+public function show(Post $post)
+{
+    return response()->json(new PostResource($post))->remember(
+        resource: PostResource::class,
+        models: [$post],
+        ttl: 300,
     );
 }
 ```
@@ -221,7 +234,7 @@ public function index(OutputCache $cache, Request $request)
 - `models` — the models being rendered, in order. The cache key is built from them.
 - `vary` — anything else the output depends on (locale, viewer, filters). Each combination gets its own entry.
 - `ttl` — seconds to keep the entry.
-- `build` — returns the output array. Only runs on a cache miss.
+- `build` — returns the output array. Only runs on a cache miss (request macro and `OutputCache` only).
 
 Invalidation is automatic: saving or deleting a rendered model, or any row reached through a loaded relation or `#[Counts]`, forgets the entry.
 

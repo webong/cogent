@@ -20,3 +20,7 @@ Cogent across the whole path of a Laravel object: Request, Event, Output and Bro
 - [x] AsyncAPI: channels, event names and resource payloads with `cogent:asyncapi` (Docs)
 - [x] Benchmark plain resources against prepared and cached ones, numbers in the README (Docs)
 - [x] Require Laravel 12: Laravel 11 has open security advisories that block normal Composer installs (Compatibility)
+- [x] Controller-level response caching: `#[RememberResponse]` attribute, `$request->remember()`, `response()->remember()` (Output)
+- [x] Config-driven cache surfaces with domains, registry, and per-surface enabled/TTL (Output)
+- [x] Unified `cogent:plans --format` command replacing standalone `cogent:asyncapi` (Docs)
+- [x] User-facing documentation in `docs/` directory (Docs)

@@ -11,6 +11,7 @@ use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 use Webong\Cogent\Attributes\RememberResponse;
 use Webong\Cogent\Cache\CogentCacheNameBuilder;
+use Webong\Cogent\Cache\SurfaceCache;
 
 /**
  * Reads #[RememberResponse] on controller methods and caches the response
@@ -27,8 +28,10 @@ final class RememberResponseMiddleware
 {
     public function __construct(
         private readonly CacheRepository $cache,
+        private readonly SurfaceCache $surface,
         private readonly CogentCacheNameBuilder $nameBuilder,
-    ) {}
+    ) {
+    }
 
     public function handle(Request $request, Closure $next): SymfonyResponse
     {
@@ -38,8 +41,9 @@ final class RememberResponseMiddleware
             return $next($request);
         }
 
+        /** @phpstan-ignore method.notFound */
         $action = $route->action();
-        $controller = $action['controller'] ?? null;
+        $controller = is_array($action) ? ($action['controller'] ?? null) : null;
 
         if (! is_string($controller) || ! str_contains($controller, '@')) {
             return $next($request);
@@ -89,7 +93,7 @@ final class RememberResponseMiddleware
 
         foreach ($config->vary as $vary) {
             if ($vary instanceof Closure) {
-                $varyValues[get_class($vary) ?? 'closure'] = $vary($request);
+                $varyValues[get_class($vary)] = $vary($request);
 
                 continue;
             }
@@ -145,28 +149,46 @@ final class RememberResponseMiddleware
             }
         }
 
+        // OutputCache-compatible tags so OutputCache::forget() can invalidate
+        // entries stored by this middleware when models change.
+        $watchPrefix = 'cogent:output:watch:';
+
         foreach ($models as $model) {
-            $tags[] = $this->nameBuilder->getDomainTag($config->domain, $model->getKey());
+            $class = $model::class;
+            $key = $model->getKey();
+
+            // Surface-style tag: cogent:{domain}:{key}
+            $tags[] = $this->nameBuilder->getDomainTag($config->domain, $key);
+
+            // OutputCache-compatible tag: cogent:output:{class}:{key}
+            $tags[] = 'cogent:output:' . $class . ':' . $key;
+
+            // Persist watched columns so OutputCache::forget() can find them.
+            $known = $this->cache->get($watchPrefix . $class, []);
+            $known = is_array($known) ? $known : [];
+            if (! isset($known['@key'])) {
+                $known['@key'] = true;
+                $this->cache->forever($watchPrefix . $class, $known);
+            }
         }
 
-        // Cache hit: return the stored response without running the controller.
-        $cached = $this->cache->get($cacheKey);
+        // SurfaceCache::remember runs the callback only on a cache miss.
+        // Capture the response via reference so we can return it on a miss.
+        $response = null;
 
-        if ($cached !== null && is_string($cached)) {
-            return new SymfonyResponse(
-                $cached,
-                200,
-                ['content-type' => 'application/json'],
-            );
+        $result = $this->surface->remember($cacheKey, $tags, $ttl, function () use ($next, $request, &$response): string {
+            $response = $next($request);
+
+            return $response instanceof SymfonyResponse ? $response->getContent() : '';
+        });
+
+        $content = $result->value;
+
+        if ($result->hit) {
+            return new SymfonyResponse($content, 200, ['content-type' => 'application/json']);
         }
 
-        // Cache miss: run the controller and store the response with tags.
-        $response = $next($request);
-
-        if ($response instanceof SymfonyResponse && $response->getStatusCode() === 200) {
-            $this->cache->tags($tags)->put($cacheKey, $response->getContent(), $ttl);
-        }
-
+        // Cache miss: the callback already ran $next() and captured $response.
         return $response;
     }
 

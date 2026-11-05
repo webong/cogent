@@ -18,8 +18,8 @@ use Illuminate\Support\ServiceProvider;
 use Webong\Cogent\Cache\CacheKeyBuilder;
 use Webong\Cogent\Cache\CogentCacheInvalidator;
 use Webong\Cogent\Cache\CogentCacheNameBuilder;
-use Webong\Cogent\Console\PlansCommand;
 use Webong\Cogent\Cache\SurfaceCache;
+use Webong\Cogent\Console\PlansCommand;
 use Webong\Cogent\Resources\OutputCache;
 use Webong\Cogent\Resources\PreparedResourceCollection;
 use Webong\Cogent\Resources\RenderGuard;
@@ -81,6 +81,16 @@ class CogentServiceProvider extends ServiceProvider
             static fn (): CogentCacheNameBuilder => new CogentCacheNameBuilder,
         );
 
+        $this->app->when(RememberResponseMiddleware::class)
+            ->needs(SurfaceCache::class)
+            ->give(function () {
+                return new SurfaceCache(
+                    app(CacheRepository::class),
+                    indexPrefix: 'cogent:controller:index:',
+                    useStoreTags: false,
+                );
+            });
+
         $this->app->scoped(
             CogentCacheInvalidator::class,
             static fn (Container $app): CogentCacheInvalidator => new CogentCacheInvalidator(
@@ -103,6 +113,10 @@ class CogentServiceProvider extends ServiceProvider
         );
 
         if ($this->app->runningInConsole()) {
+            $this->publishes([
+                __DIR__.'/../config/cogent.php' => config_path('cogent.php'),
+            ], 'cogent-config');
+
             $this->commands([PlansCommand::class]);
         }
 
@@ -123,7 +137,7 @@ class CogentServiceProvider extends ServiceProvider
             },
         );
 
-        Collection::macro('toResourceCollection', static function (string $resource): PreparedResourceCollection {
+        Collection::macro('toResourceCollection', function (string $resource): PreparedResourceCollection {
             return new PreparedResourceCollection($this, $resource);
         });
 
@@ -137,7 +151,7 @@ class CogentServiceProvider extends ServiceProvider
              * @param  Closure(): array<mixed>  $build
              * @return array<mixed>
              */
-            Request::macro('remember', static function (string $resource, array $models, array $vary = [], int $ttl = 60, Closure $build): array {
+            Request::macro('remember', function (string $resource, array $models, Closure $build, array $vary = [], int $ttl = 60): array {
                 return app(OutputCache::class)->remember($resource, $models, $vary, $ttl, $build);
             });
         }
@@ -151,7 +165,7 @@ class CogentServiceProvider extends ServiceProvider
              * @param  array<string, mixed>  $vary
              * @return static
              */
-            Response::macro('remember', static function (string $resource, array $models, array $vary = [], int $ttl = 60): self {
+            Response::macro('remember', function (string $resource, array $models, array $vary = [], int $ttl = 60): self {
                 $cache = app(CacheRepository::class);
                 $keys = app(CacheKeyBuilder::class);
 
@@ -165,7 +179,7 @@ class CogentServiceProvider extends ServiceProvider
                 $cached = $cache->get($key);
 
                 if ($cached !== null && is_string($cached)) {
-                    return new static($cached, $this->getStatusCode(), $this->headers->all());
+                    return new Response($cached, $this->getStatusCode(), $this->headers->all());
                 }
 
                 $cache->put($key, $this->getContent(), $ttl);

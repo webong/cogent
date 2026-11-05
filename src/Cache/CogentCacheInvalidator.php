@@ -21,39 +21,40 @@ final class CogentCacheInvalidator
     public function __construct(
         private readonly \Illuminate\Contracts\Cache\Repository $cache,
         private readonly CogentCacheNameBuilder $keyBuilder,
-    ) {}
+    ) {
+    }
 
     public function invalidateUser(string|int $userId): void
     {
-        $this->cache->invalidateTags([
-            $this->keyBuilder->getDomainTag('users', $userId),
-        ]);
+        $this->cache->tags([$this->keyBuilder->getDomainTag('users', $userId)])->flush();
     }
 
     public function invalidatePost(string|int $postId): void
     {
-        $this->cache->invalidateTags([
+        $tags = [
             $this->keyBuilder->getDomainTag('posts', $postId),
             $this->keyBuilder->getDomainSurfaceTag('posts', 'detail'),
             $this->keyBuilder->getSurfaceTag('list'),
             $this->keyBuilder->getSurfaceTag('counts'),
-        ]);
+        ];
+
+        $this->cache->tags($tags)->flush();
     }
 
     public function invalidateComment(string|int $commentId): void
     {
-        $this->cache->invalidateTags([
+        $tags = [
             $this->keyBuilder->getDomainTag('comments', $commentId),
             $this->keyBuilder->getSurfaceTag('list'),
             $this->keyBuilder->getSurfaceTag('counts'),
-        ]);
+        ];
+
+        $this->cache->tags($tags)->flush();
     }
 
     public function invalidateSurface(string $surface): void
     {
-        $this->cache->invalidateTags([
-            $this->keyBuilder->getSurfaceTag($surface),
-        ]);
+        $this->cache->tags([$this->keyBuilder->getSurfaceTag($surface)])->flush();
     }
 
     public function invalidateDomain(string $domain): void
@@ -70,6 +71,6 @@ final class CogentCacheInvalidator
         $tags[] = $this->keyBuilder->getSurfaceTag('list');
         $tags[] = $this->keyBuilder->getSurfaceTag('counts');
 
-        $this->cache->invalidateTags($tags);
+        $this->cache->tags($tags)->flush();
     }
 }

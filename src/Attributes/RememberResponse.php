@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Webong\Cogent\Attributes;
 
 use Closure;
+use Illuminate\Http\Request;
 
 /**
  * Cache a controller method's response using a named cache surface.
@@ -56,5 +57,6 @@ final class RememberResponse
         public array $vary = [],
         public bool $shared = false,
         public ?Closure $when = null,
-    ) {}
+    ) {
+    }
 }

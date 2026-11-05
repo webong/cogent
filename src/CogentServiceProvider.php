@@ -11,6 +11,7 @@ use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Events\QueryExecuted;
+use Illuminate\Http\Request;
 use Illuminate\Support\ServiceProvider;
 use Webong\Cogent\Cache\CacheKeyBuilder;
 use Webong\Cogent\Console\PlansCommand;
@@ -97,5 +98,20 @@ class CogentServiceProvider extends ServiceProvider
         Collection::macro('toResourceCollection', static function (string $resource): PreparedResourceCollection {
             return new PreparedResourceCollection($this, $resource);
         });
+
+        if (! Request::hasMacro('remember')) {
+            /**
+             * Cache an entire controller response as input/output: the input is
+             * the models plus anything the output varies on, and the output is
+             * the rendered array. Auto-forgets when any rendered model changes.
+             *
+             * @param  array<string, mixed>  $vary
+             * @param  Closure(): array<mixed>  $build
+             * @return array<mixed>
+             */
+            Request::macro('remember', static function (string $resource, array $models, array $vary = [], int $ttl = 60, Closure $build): array {
+                return app(OutputCache::class)->remember($resource, $models, $vary, $ttl, $build);
+            });
+        }
     }
 }

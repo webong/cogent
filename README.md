@@ -180,7 +180,26 @@ Each authenticated user gets their own entry unless you mark it shared:
 
 ### Controller-level caching (Input / Output)
 
-`#[Remember]` lives on the resource. If you want to cache an entire controller response — including anything the controller adds beyond the resource — inject `OutputCache` and wrap the build yourself. This is an Input/Output cache: the input is the models plus anything the output varies on, and the output is the rendered array. It auto-forgets when any of those models (or rows reached through their loaded relations) is saved or deleted.
+`#[Remember]` lives on the resource. If you want to cache an entire controller response — including anything the controller adds beyond the resource — use the `remember()` macro on the request, or inject `OutputCache` directly. This is an Input/Output cache: the input is the models plus anything the output varies on, and the output is the rendered array. It auto-forgets when any of those models (or rows reached through their loaded relations) is saved or deleted.
+
+Using the request macro (simplest):
+
+```php
+public function index(Request $request)
+{
+    $posts = Post::query()->orderBy('created_at', 'desc')->get();
+
+    return $request->remember(
+        resource: PostResource::class,
+        models: $posts->all(),
+        vary: ['locale' => app()->getLocale(), 'page' => $request->input('page')],
+        ttl: 300,
+        build: fn () => PostResource::collection($posts)->resolve($request),
+    );
+}
+```
+
+Or inject `OutputCache` directly:
 
 ```php
 use Webong\Cogent\Resources\OutputCache;

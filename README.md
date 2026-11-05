@@ -178,6 +178,34 @@ Each authenticated user gets their own entry unless you mark it shared:
 #[Remember(300, shared: true)]
 ```
 
+### Controller-level caching (Input / Output)
+
+`#[Remember]` lives on the resource. If you want to cache an entire controller response — including anything the controller adds beyond the resource — inject `OutputCache` and wrap the build yourself. This is an Input/Output cache: the input is the models plus anything the output varies on, and the output is the rendered array. It auto-forgets when any of those models (or rows reached through their loaded relations) is saved or deleted.
+
+```php
+use Webong\Cogent\Resources\OutputCache;
+
+public function index(OutputCache $cache, Request $request)
+{
+    $posts = Post::query()->orderBy('created_at', 'desc')->get();
+
+    return $cache->remember(
+        resource: PostResource::class,
+        models: $posts->all(),
+        vary: ['locale' => app()->getLocale(), 'page' => $request->input('page')],
+        ttl: 300,
+        build: fn () => PostResource::collection($posts)->resolve($request),
+    );
+}
+```
+
+- `models` — the models being rendered, in order. The cache key is built from them.
+- `vary` — anything else the output depends on (locale, viewer, filters). Each combination gets its own entry.
+- `ttl` — seconds to keep the entry.
+- `build` — returns the output array. Only runs on a cache miss.
+
+Invalidation is automatic: saving or deleting a rendered model, or any row reached through a loaded relation or `#[Counts]`, forgets the entry.
+
 ### Make sure nothing lazy-loads while rendering
 
 Turn on the dev guard so any query that sneaks in while a resource renders throws instead of silently becoming an N+1:

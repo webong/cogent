@@ -17,7 +17,8 @@ use Webong\Cogent\Cache\CogentCacheNameBuilder;
  * using the CRM-style surface/domain/tag pattern.
  *
  * The cache key is built from the domain, surface, route-bound models, and
- * vary values. Tags are used for automatic invalidation when models change.
+ * vary values (which can be request input keys or closures receiving the
+ * request). Tags are used for automatic invalidation when models change.
  *
  * Runs after route model binding so bound models are available for the cache
  * key and tags.
@@ -61,6 +62,14 @@ final class RememberResponseMiddleware
 
         $config = $attribute->newInstance();
 
+        // Conditional caching: skip if `when` returns false.
+        if ($config->when !== null && ! ($config->when)($request)) {
+            return $next($request);
+        }
+
+        // Auto-register domain/surface into the registry if not present.
+        $this->ensureRegistryEntry($config->domain, $config->surface);
+
         // Check if this surface is enabled and get its TTL from config.
         $surfaces = config('cogent.surfaces', []);
         $surfaceConfig = $surfaces[$config->surface] ?? null;
@@ -75,11 +84,17 @@ final class RememberResponseMiddleware
             return $next($request);
         }
 
-        // Vary values read from the request.
+        // Vary values: request input keys or closures receiving the request.
         $varyValues = [];
 
-        foreach ($config->vary as $key) {
-            $varyValues[$key] = $request->input($key);
+        foreach ($config->vary as $vary) {
+            if ($vary instanceof Closure) {
+                $varyValues[get_class($vary) ?? 'closure'] = $vary($request);
+
+                continue;
+            }
+
+            $varyValues[$vary] = $request->input($vary);
         }
 
         // If not shared, vary by the authenticated user.
@@ -153,5 +168,32 @@ final class RememberResponseMiddleware
         }
 
         return $response;
+    }
+
+    /**
+     * Ensure the domain/surface combination exists in the registry so
+     * config lookups don't throw. This lets attributes declare new
+     * domains/surfaces without manually editing config/cogent.php.
+     */
+    private function ensureRegistryEntry(string $domain, string $surface): void
+    {
+        $registry = config('cogent.registry', []);
+
+        if (isset($registry[$domain]) && in_array($surface, $registry[$domain], true)) {
+            return;
+        }
+
+        $registry[$domain] = array_values(array_unique([
+            ...($registry[$domain] ?? []),
+            $surface,
+        ]));
+
+        config(['cogent.registry' => $registry]);
+
+        $domains = config('cogent.domains', []);
+
+        if (! in_array($domain, $domains, true)) {
+            config(['cogent.domains' => array_values(array_unique([...$domains, $domain]))]);
+        }
     }
 }

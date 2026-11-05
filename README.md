@@ -288,10 +288,43 @@ public function index(Request $request)
 }
 ```
 
+#### Vary values
+
+`vary` accepts request input keys (strings) or closures that receive the request and return a value:
+
+```php
+#[RememberResponse(
+    surface: 'list',
+    domain: 'posts',
+    vary: [
+        'locale',
+        'page',
+        fn (Request $request) => $request->header('x-app-version'),
+    ],
+)]
+```
+
+#### Conditional caching (`when`)
+
+Only cache when a condition is met. Return `false` from `when` to skip caching entirely for that request:
+
+```php
+#[RememberResponse(
+    surface: 'detail',
+    domain: 'posts',
+    when: fn (Request $request) => $request->query('cache') === '1',
+)]
+```
+
+#### Auto-registration
+
+Domains and surfaces used in `#[RememberResponse]` attributes are automatically registered into `config/cogent.php` at runtime — you don't need to manually add them to the registry. The first time a route with an attribute is hit, the middleware ensures the domain/surface combination exists in the config.
+
 - `surface` — named cache surface (`list`, `counts`, `detail`, `scope`, `context`). Must be enabled in `config/cogent.php`.
 - `domain` — cache domain grouping related resources (`posts`, `users`, `comments`, etc.).
-- `vary` — request input keys that differentiate the cache entry (e.g. `locale`, `page`, `filter`).
+- `vary` — request input keys or closures that differentiate the cache entry.
 - `shared` — one entry for everyone instead of per authenticated user.
+- `when` — closure receiving the request; only cache when it returns `true`.
 
 The cache key is built from the domain, surface, route-bound models, and `vary` values. Tags are used for automatic invalidation: saving or deleting a route-bound model (or any row reached through its loaded relations) forgets the entry.
 

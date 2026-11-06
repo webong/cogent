@@ -192,6 +192,7 @@ class CachedRelationRegistry
             key: $overrides->key,
             ttl: $overrides->ttl ?? 86400,
             resolver: $overrides->resolver,
+            baseQuery: $declared->getQuery(),
         );
     }
 

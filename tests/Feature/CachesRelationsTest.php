@@ -315,3 +315,23 @@ it('still reads caches declared on the collection itself', function (): void {
 
     expect($collection->relationCached('author'))->toBeFalse();
 });
+
+it('keeps relation query constraints when caching filtered relations', function (): void {
+    $post = createPosts(User::query()->create(['name' => 'Ada']), 1)->first();
+
+    createComments($post, 2);
+
+    $collection = CachedPost::query()->whereKey($post->getKey())->get();
+    $collection->withCached(['publishedComments']);
+
+    expect($collection->first()->getRelation('publishedComments'))->toHaveCount(0);
+
+    // Only published comments should be cached.
+    Comment::query()->where('post_id', $post->id)->first()->update(['published' => true]);
+
+    $collection = CachedPost::query()->whereKey($post->getKey())->get();
+    $collection->withCached(['publishedComments']);
+
+    expect($collection->first()->getRelation('publishedComments'))->toHaveCount(1);
+});
+

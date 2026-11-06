@@ -77,4 +77,14 @@ class CachedPost extends Model
     {
         return $this->hasMany(Comment::class, 'post_id');
     }
+
+    public function publishedComments(): HasMany
+    {
+        return cached(
+            relation: $this->hasMany(Comment::class, 'post_id')->where('published', true),
+            ttl: 60,
+            key: 'cogent-test:published-comments:{value}',
+            collection: CommentCollection::class,
+        );
+    }
 }

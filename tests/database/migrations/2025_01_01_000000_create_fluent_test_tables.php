@@ -25,6 +25,7 @@ return new class extends Migration {
             $table->id();
             $table->foreignId('post_id');
             $table->string('body');
+            $table->boolean('published')->default(false);
         });
 
         Schema::create('tags', function (Blueprint $table): void {

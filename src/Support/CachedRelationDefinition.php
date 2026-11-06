@@ -44,6 +44,7 @@ final readonly class CachedRelationDefinition
         public Closure|string|null $key = null,
         public int|DateTimeInterface|DateInterval $ttl = 86400,
         public Closure|string|null $resolver = null,
+        public ?Builder $baseQuery = null,
     ) {
     }
 
@@ -66,10 +67,8 @@ final readonly class CachedRelationDefinition
      */
     public function resolve(array $localValues): Collection
     {
-        /** @var Model $related */
+        $query = $this->baseQuery ? clone $this->baseQuery : (new $this->relatedClass)->newQuery();
         $related = new $this->relatedClass;
-
-        $query = $related->newQuery();
 
         if ($this->relatedMorphType !== null && $this->morphClass !== null) {
             $query->where($this->relatedMorphType, $this->morphClass);
@@ -140,6 +139,7 @@ final readonly class CachedRelationDefinition
     private function resolveOne(Model $related, Builder $query, array $localValues): Collection
     {
         $key = $this->relatedKey ?? $related->getKeyName();
+        $this->stripForeignKeyWhere($query, $key);
 
         return $query
             ->whereIn($key, $localValues)
@@ -154,11 +154,32 @@ final readonly class CachedRelationDefinition
     private function resolveMany(Builder $query, array $localValues): Collection
     {
         $foreignKey = $this->requireForeignKey();
+        $this->stripForeignKeyWhere($query, $foreignKey);
 
         return $query
             ->whereIn($foreignKey, $localValues)
             ->get()
             ->groupBy(static fn (Model $model): string => (string) $model->getAttribute($foreignKey));
+    }
+
+    /**
+     * Remove any where constraint on the foreign key column from the query,
+     * so a whereIn on multiple parent IDs can be applied instead.
+     *
+     * The base query from the declared relation already has a where on the
+     * foreign key for a single parent; we replace it with whereIn for many parents.
+     *
+     * @param  string  $foreignKey  The column name, qualified or not.
+     */
+    private function stripForeignKeyWhere(Builder $query, string $foreignKey): void
+    {
+        $related = new $this->relatedClass;
+        $qualified = $related->getTable().'.'.$foreignKey;
+
+        $query->getQuery()->wheres = array_values(array_filter(
+            $query->getQuery()->wheres ?? [],
+            fn ($w) => ! isset($w['column']) || ! in_array($w['column'], [$foreignKey, $qualified], true),
+        ));
     }
 
     /**

@@ -105,7 +105,7 @@ php artisan cogent:plans --format=asyncapi \
 
 ### What it does (and doesn't do)
 
-AsyncAPI is **documentation only** — it describes what your broadcast events look like, it doesn't handle WebSocket connections at runtime (that's Reverb/Pusher's job).
+AsyncAPI is **documentation only** — it describes what your broadcast events look like. It does **not** handle WebSocket connections at runtime (that's Laravel Reverb/Pusher's job).
 
 It scans your event and model classes and produces an AsyncAPI 3.0 document so frontend teams know:
 
@@ -168,6 +168,18 @@ php artisan cogent:plans --format=asyncapi > public/docs/cogent-asyncapi.json
 
 ---
 
+### Runtime vs Documentation: the full picture
+
+| Layer | Runtime (handles live requests/events) | Documentation (spec only) |
+|---|---|---|
+| **Eloquent / Fluent** | `plug`, `include`, `batchCount` on collections | — |
+| **Request** | spatie/laravel-query-builder via `Cogent::query()` | OpenAPI 3.1 |
+| **Output (Resource)** | `PreparesResources`, `#[Remember]`, output cache | — |
+| **Event / Broadcast** | Laravel Reverb/Pusher via `BroadcastsResources` | AsyncAPI 3.0 |
+
+**Neither OpenAPI nor AsyncAPI processes live traffic.** They're machine-readable descriptions generated from your resource attributes. The runtime work is done by spatie (query params) and Laravel's broadcasting system (WebSocket events), both driven by the same attribute declarations on your resources.
+
+---
 
 ## JSON plans
 

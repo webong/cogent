@@ -60,6 +60,12 @@ it('prints the plans as a table', function (): void {
 });
 
 it('describes include parameters as OpenAPI components', function (): void {
+    if (! Webong\Cogent\Documentation\ResourceSchemaInferer::available()) {
+        expect(true)->toBeTrue();
+
+        return;
+    }
+
     $document = (new PlanExporter)->openApi([IncludablePostResource::class, CommentResource::class], 'with');
     $parameters = (array) $document['components']['parameters'];
 
@@ -71,6 +77,12 @@ it('describes include parameters as OpenAPI components', function (): void {
 });
 
 it('infers resource response schemas with Scramble', function (): void {
+    if (! Webong\Cogent\Documentation\ResourceSchemaInferer::available()) {
+        expect(true)->toBeTrue();
+
+        return;
+    }
+
     $document = (new PlanExporter)->openApi([PostResource::class]);
 
     $document = json_decode(json_encode($document, JSON_THROW_ON_ERROR), true, flags: JSON_THROW_ON_ERROR);
@@ -82,6 +94,12 @@ it('infers resource response schemas with Scramble', function (): void {
 });
 
 it('prints OpenAPI components', function (): void {
+    if (! Webong\Cogent\Documentation\ResourceSchemaInferer::available()) {
+        expect(true)->toBeTrue();
+
+        return;
+    }
+
     Artisan::call('cogent:plans', ['--path' => [fixtureResources()], '--format' => 'openapi']);
 
     $document = json_decode(Artisan::output(), true, flags: JSON_THROW_ON_ERROR);

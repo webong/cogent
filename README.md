@@ -104,6 +104,56 @@ Need a different query parameter than `?include=`? Register it once in a service
 Cogent::includeParameter('with');
 ```
 
+### JSON:API-style filtering and sorting (spatie/laravel-query-builder)
+
+Cogent works alongside [spatie/laravel-query-builder](https://github.com/spatie/laravel-query-builder) for JSON:API-style `filter[]`, `sort`, and `include` query parameters. Declare allowed filters, sorts, and includes on a spatie `QueryBuilder`, and Cogent's `PlanExporter` can document them in OpenAPI output:
+
+```php
+use Spatie\QueryBuilder\QueryBuilder;
+use Spatie\QueryBuilder\AllowedFilter;
+use Spatie\QueryBuilder\AllowedInclude;
+use Spatie\QueryBuilder\AllowedSort;
+
+$query = QueryBuilder::for(Post::query())
+    ->allowedFilters(AllowedFilter::exact('title'), AllowedFilter::partial('body'))
+    ->allowedSorts('title', 'created_at')
+    ->allowedIncludes('author', 'comments');
+```
+
+Read the declared metadata for documentation:
+
+```php
+use Webong\Cogent\QueryBuilder\QueryBuilderMetadata;
+
+$metadata = QueryBuilderMetadata::from($query);
+
+// ['author' => null, 'comments' => null]
+$metadata['includes'];
+
+// ['title' => 'Spatie\\QueryBuilder\\Filters\\FiltersExact', 'body' => 'Spatie\\QueryBuilder\\Filters\\FiltersPartial']
+$metadata['filters'];
+
+// ['title' => 'asc', 'created_at' => 'asc']
+$metadata['sorts'];
+```
+
+Pass it to `PlanExporter::openApi()` so OpenAPI output includes `filter[]` and `sort` parameters alongside `?include=`:
+
+```php
+use Webong\Cogent\Resources\PlanExporter;
+
+$exporter = new PlanExporter();
+$document = $exporter->openApi(
+    [PostResource::class],
+    'include',
+    [PostResource::class => QueryBuilderMetadata::from($query)],
+);
+```
+
+The resulting OpenAPI document gets `filter[title]`, `filter[body]`, and `sort` query parameters in `components.parameters`, plus an `x-cogent` extension carrying the filter class and sort direction for each.
+
+Combined with `#[Includable]` on your resources, this gives you full JSON:API-style query support: filtering, sorting, and includes — all declared, all documented, all validated.
+
 ### Declaring what a resource renders
 
 Add `PreparesResources` to a resource and declare what it renders:

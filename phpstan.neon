@@ -16,7 +16,3 @@ parameters:
         - tests/Fixtures/
     level: 5
     tmpDir: .phpstan.cache
-    ignoreErrors:
-        -
-            message: '#Dedoc\\Scramble#'
-            path: src/Documentation/ResourceSchemaInferer.php

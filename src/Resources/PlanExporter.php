@@ -59,9 +59,15 @@ final class PlanExporter
      * {"$ref": "#/components/parameters/PostResourceInclude"}.
      *
      * @param  list<class-string>  $resources
+     * @param  array<string, array{
+     *     includes: array<string, class-string|null>,
+     *     filters: array<string, string>,
+     *     sorts: array<string, string>
+     * }>  $queryBuilders  Optional spatie QueryBuilder metadata keyed by resource class name.
+     *                      When provided, filter and sort query parameters are added to the OpenAPI output.
      * @return array<string, mixed>
      */
-    public function openApi(array $resources, string $parameter = 'include'): array
+    public function openApi(array $resources, string $parameter = 'include', array $queryBuilders = []): array
     {
         if (! ResourceSchemaInferer::available()) {
             throw new \RuntimeException('Install dedoc/scramble to infer resource schemas: composer require --dev dedoc/scramble');
@@ -76,7 +82,9 @@ final class PlanExporter
             $name = class_basename($resource);
             $plans[$name] = $plan + ['schema' => $inferred['references'][$resource]];
 
-            if ($plan['requestable'] === []) {
+            $qbMeta = $queryBuilders[$resource] ?? null;
+
+            if ($plan['requestable'] === [] && ($qbMeta === null || $qbMeta['includes'] === [])) {
                 continue;
             }
 
@@ -93,6 +101,40 @@ final class PlanExporter
                     'uniqueItems' => true,
                 ],
             ];
+
+            // spatie QueryBuilder filter parameters
+            if ($qbMeta !== null && $qbMeta['filters'] !== []) {
+                foreach ($qbMeta['filters'] as $filterName => $filterClass) {
+                    $parameters[$name.'Filter'.ucfirst($filterName)] = [
+                        'name' => 'filter['.$filterName.']',
+                        'in' => 'query',
+                        'required' => false,
+                        'description' => 'Filter by '.ucfirst($filterName).'.',
+                        'style' => 'form',
+                        'explode' => false,
+                        'schema' => ['type' => 'string'],
+                        'x-cogent' => ['filterClass' => $filterClass],
+                    ];
+                }
+            }
+
+            // spatie QueryBuilder sort parameters
+            if ($qbMeta !== null && $qbMeta['sorts'] !== []) {
+                $parameters[$name.'Sort'] = [
+                    'name' => 'sort',
+                    'in' => 'query',
+                    'required' => false,
+                    'description' => 'Sort by comma-separated fields. Prefix with - for descending.',
+                    'style' => 'form',
+                    'explode' => false,
+                    'schema' => [
+                        'type' => 'array',
+                        'items' => ['type' => 'string', 'enum' => array_keys($qbMeta['sorts'])],
+                        'uniqueItems' => true,
+                    ],
+                    'x-cogent' => ['sorts' => $qbMeta['sorts']],
+                ];
+            }
         }
 
         return [

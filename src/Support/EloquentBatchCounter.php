@@ -78,18 +78,9 @@ final class EloquentBatchCounter
      */
     private function fetchCounts(Builder $query, string $groupBy, ?int $cap): BatchCountResult
     {
-        if ($cap === null) {
-            $rows = $query
-                ->selectRaw("{$groupBy} as batch_parent_id, COUNT(*) as aggregate, 0 as truncated")
-                ->get();
-        } else {
-            $rows = $query
-                ->selectRaw(
-                    "{$groupBy} as batch_parent_id, LEAST(COUNT(*), ?) as aggregate, (COUNT(*) > ?) as truncated",
-                    [$cap, $cap],
-                )
-                ->get();
-        }
+        $rows = $query
+            ->selectRaw("{$groupBy} as batch_parent_id, COUNT(*) as aggregate")
+            ->get();
 
         /** @var Collection<int|string, int> $counts */
         $counts = new Collection;
@@ -98,8 +89,9 @@ final class EloquentBatchCounter
 
         foreach ($rows as $row) {
             $key = (string) $row->getAttribute('batch_parent_id');
-            $counts[$key] = (int) $row->getAttribute('aggregate');
-            $truncated[$key] = (bool) $row->getAttribute('truncated');
+            $aggregate = (int) $row->getAttribute('aggregate');
+            $counts[$key] = $cap === null ? $aggregate : min($aggregate, $cap);
+            $truncated[$key] = $cap !== null && $aggregate > $cap;
         }
 
         return new BatchCountResult($counts, $truncated);

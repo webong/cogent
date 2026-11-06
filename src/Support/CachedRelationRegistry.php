@@ -45,6 +45,27 @@ class CachedRelationRegistry
     private array $watched = [];
 
     /**
+     * @var array<class-string<Model>, true>
+     */
+    private array $bootedModels = [];
+
+    /**
+     * @param  class-string<Model>  $modelClass
+     */
+    public function registerModelClass(string $modelClass): void
+    {
+        $this->bootedModels[$modelClass] = true;
+    }
+
+    /**
+     * @return list<class-string<Model>>
+     */
+    public function bootedModels(): array
+    {
+        return array_keys($this->bootedModels);
+    }
+
+    /**
      * @param  class-string<Model>  $modelClass
      */
     public function for(string $modelClass, string $relation): CachedRelationDefinition
@@ -142,15 +163,13 @@ class CachedRelationRegistry
      */
     private function merge(?CachedRelation $attribute, ?CachedRelationOverrides $overrides): CachedRelationOverrides
     {
-        if ($attribute === null) {
-            return $overrides ?? CachedRelationOverrides::none();
-        }
-
         $fromAttribute = new CachedRelationOverrides(
-            key: $attribute->key,
-            ttl: $attribute->ttl,
-            resolver: $attribute->resolver,
-            collection: $attribute->collection,
+            localKey: null,
+            foreignKey: null,
+            key: $attribute?->key,
+            ttl: $attribute?->ttl,
+            resolver: $attribute?->resolver,
+            collection: $attribute?->collection,
         );
 
         return $overrides === null ? $fromAttribute : $overrides->merge($fromAttribute);
@@ -158,6 +177,10 @@ class CachedRelationRegistry
 
     /**
      * @param  class-string<Model>  $modelClass
+     * @param  string  $relation
+     * @param  Relation  $declared
+     * @param  CachedRelationOverrides  $overrides
+     * @return CachedRelationDefinition
      */
     private function fromRelation(
         string $modelClass,

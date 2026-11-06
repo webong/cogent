@@ -42,6 +42,13 @@ class CachedPost extends Model
         return new CachedPostCollection($models);
     }
 
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::bootDefinesCachedRelations();
+    }
+
     #[CachedRelation(ttl: 60, key: 'cogent-test:author:{value}')]
     public function author(): BelongsTo
     {

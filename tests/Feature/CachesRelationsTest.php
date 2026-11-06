@@ -335,3 +335,64 @@ it('keeps relation query constraints when caching filtered relations', function 
     expect($collection->first()->getRelation('publishedComments'))->toHaveCount(1);
 });
 
+it('registers invalidation listeners on model boot without warming cache', function (): void {
+    $post = createPosts(User::query()->create(['name' => 'Ada']), 1)->first();
+
+    // Boot the model without ever warming the cache (never calls withCached/for).
+    CachedPost::query()->whereKey($post->getKey())->first();
+
+    // Manually warm the cache to verify it can be invalidated later.
+    Cache::put('cogent-test:comments:'.$post->id, [1, 2], 3600);
+    expect(Cache::has('cogent-test:comments:'.$post->id))->toBeTrue();
+
+    // Create a comment first so there's something to update.
+    Comment::query()->create(['post_id' => $post->id, 'body' => 'Original']);
+
+    // Update a comment - the listener registered at boot time should invalidate.
+    Comment::query()->where('post_id', $post->id)->first()->update(['body' => 'Updated']);
+
+    error_log('Cache still has key: ' . var_export(Cache::has('cogent-test:comments:'.$post->id), true));
+    expect(Cache::has('cogent-test:comments:'.$post->id))->toBeFalse();
+});
+
+it('invalidates cached relation from a fresh request that never warmed it', function (): void {
+    $post = createPosts(User::query()->create(['name' => 'Ada']), 1)->first();
+    createComments($post, 2);
+
+    // Manually warm the cache (simulating a previous request).
+    Cache::put('cogent-test:comments:'.$post->id, [1, 2], 3600);
+    expect(Cache::has('cogent-test:comments:'.$post->id))->toBeTrue();
+
+    // Boot the model without ever calling withCached/for - this should still
+    // register invalidation listeners via bootDefinesCachedRelations.
+    CachedPost::query()->whereKey($post->getKey())->first();
+
+    // Update a comment - the listener registered at boot time should invalidate.
+    Comment::query()->where('post_id', $post->id)->first()->update(['body' => 'Updated']);
+
+    expect(Cache::has('cogent-test:comments:'.$post->id))->toBeFalse();
+});
+
+it('invalidates single relation by parent key, not child key', function (): void {
+    $post = createPosts(User::query()->create(['name' => 'Ada']), 1)->first();
+
+    $comment = Comment::query()->create([
+        'post_id' => $post->id,
+        'body' => 'Original',
+    ]);
+
+    $collection = CachedPost::query()->whereKey($post->getKey())->get();
+    $collection->withCached(['firstComment']);
+
+    expect($collection->first()->getRelation('firstComment')->body)->toBe('Original');
+
+    // Update the comment (child key 42), not the post (parent key).
+    // The cached firstComment is keyed by post->id, so updating comment
+    // should forget the post's cache key, not the comment's key.
+    $comment->update(['body' => 'Updated']);
+
+    $collection = CachedPost::query()->whereKey($post->getKey())->get();
+    $collection->withCached(['firstComment']);
+
+    expect($collection->first()->getRelation('firstComment')->body)->toBe('Updated');
+});

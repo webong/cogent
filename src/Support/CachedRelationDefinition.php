@@ -96,6 +96,13 @@ final readonly class CachedRelationDefinition
     public function localValuesFor(Model $related): array
     {
         if (! $this->many) {
+            if ($this->relatedForeignKey !== null) {
+                return array_values(array_filter([
+                    $related->getAttribute($this->relatedForeignKey),
+                    $related->getRawOriginal($this->relatedForeignKey),
+                ], static fn (mixed $value): bool => $value !== null));
+            }
+
             return [$related->getKey()];
         }
 
@@ -177,7 +184,7 @@ final readonly class CachedRelationDefinition
         $qualified = $related->getTable().'.'.$foreignKey;
 
         $query->getQuery()->wheres = array_values(array_filter(
-            $query->getQuery()->wheres ?? [],
+            $query->getQuery()->wheres,
             fn ($w) => ! isset($w['column']) || ! in_array($w['column'], [$foreignKey, $qualified], true),
         ));
     }

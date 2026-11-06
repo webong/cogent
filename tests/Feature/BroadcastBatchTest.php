@@ -12,8 +12,8 @@ use Webong\Cogent\Tests\Fixtures\Models\User;
 beforeEach(function (): void {
     ResourcePlan::flush();
 
-    $this->broadcaster = new CapturingBroadcaster;
-    Broadcast::extend('capture', fn (): CapturingBroadcaster => $this->broadcaster);
+    new CapturingBroadcaster;
+    Broadcast::extend('capture', fn (): CapturingBroadcaster => CapturingBroadcaster::$last);
     config(['broadcasting.default' => 'capture', 'broadcasting.connections.capture' => ['driver' => 'capture']]);
 
     BroadcastingPost::withoutBroadcasting(function (): void {
@@ -32,6 +32,7 @@ function broadcastingPosts(): array
 }
 
 it('prepares every model once and sends a snapshot for each event', function (): void {
+    $broadcaster = CapturingBroadcaster::$last;
     $posts = broadcastingPosts();
     $queries = $this->countQueries();
 
@@ -40,15 +41,15 @@ it('prepares every model once and sends a snapshot for each event', function ():
             $post->update(['title' => $post->title.'!']);
         }
 
-        expect($this->broadcaster->broadcasts)->toBe([]);
+        expect(CapturingBroadcaster::$last->broadcasts)->toBe([]);
     });
 
     // Three updates, then one pass: author, tags, post counts and comment counts.
     expect($queries())->toBe(7)
-        ->and($this->broadcaster->broadcasts)->toHaveCount(3)
-        ->and($this->broadcaster->broadcasts[2]['event'])->toBe('BroadcastingPostUpdated')
-        ->and($this->broadcaster->broadcasts[2]['channels'])->toBe(['private-posts'])
-        ->and($this->broadcaster->broadcasts[2]['payload'])->toMatchArray([
+        ->and(CapturingBroadcaster::$last->broadcasts)->toHaveCount(3)
+        ->and(CapturingBroadcaster::$last->broadcasts[2]['event'])->toBe('BroadcastingPostUpdated')
+        ->and(CapturingBroadcaster::$last->broadcasts[2]['channels'])->toBe(['private-posts'])
+        ->and(CapturingBroadcaster::$last->broadcasts[2]['payload'])->toMatchArray([
             'title' => 'Third post!',
             'comments_count' => 3,
             'author' => ['id' => 1, 'name' => 'Ada', 'tags' => [], 'posts_count' => 3],
@@ -56,6 +57,7 @@ it('prepares every model once and sends a snapshot for each event', function ():
 });
 
 it('sends each event on its own outside a batch', function (): void {
+    $broadcaster = CapturingBroadcaster::$last;
     $posts = broadcastingPosts();
     $queries = $this->countQueries();
 
@@ -63,11 +65,12 @@ it('sends each event on its own outside a batch', function (): void {
         $post->update(['title' => $post->title.'!']);
     }
 
-    expect($this->broadcaster->broadcasts)->toHaveCount(3)
+    expect($broadcaster->broadcasts)->toHaveCount(3)
         ->and($queries())->toBeGreaterThan(7);
 });
 
 it('sends nothing when the callback throws', function (): void {
+    $broadcaster = CapturingBroadcaster::$last;
     $posts = broadcastingPosts();
 
     try {
@@ -80,20 +83,21 @@ it('sends nothing when the callback throws', function (): void {
         //
     }
 
-    expect($this->broadcaster->broadcasts)->toBe([]);
+    expect($broadcaster->broadcasts)->toBe([]);
 });
 
 it('sends once the outermost batch ends', function (): void {
+    $broadcaster = CapturingBroadcaster::$last;
     $posts = broadcastingPosts();
 
     $result = Cogent::batchBroadcasts(function () use ($posts): string {
         Cogent::batchBroadcasts(fn () => $posts[0]->update(['title' => 'Inner']));
 
-        expect($this->broadcaster->broadcasts)->toBe([]);
+        expect(CapturingBroadcaster::$last->broadcasts)->toBe([]);
 
         return 'done';
     });
 
     expect($result)->toBe('done')
-        ->and($this->broadcaster->broadcasts)->toHaveCount(1);
+        ->and(CapturingBroadcaster::$last->broadcasts)->toHaveCount(1);
 });

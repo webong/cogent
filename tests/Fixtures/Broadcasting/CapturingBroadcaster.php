@@ -13,6 +13,13 @@ final class CapturingBroadcaster extends Broadcaster
      */
     public array $broadcasts = [];
 
+    public static ?self $last = null;
+
+    public function __construct()
+    {
+        self::$last = $this;
+    }
+
     public function auth($request): mixed
     {
         return null;

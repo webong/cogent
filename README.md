@@ -39,7 +39,7 @@ Cogent works across the whole path of a Laravel object:
 composer require webong/cogent
 ```
 
-The service provider is auto-discovered, so nothing else is required.
+The service provider is auto-discovered. Requires PHP 8.3+ and Laravel 12 or 13.
 
 ---
 

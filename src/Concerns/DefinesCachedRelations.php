@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Relations\Relation;
 use InvalidArgumentException;
 use ReflectionClass;
 use ReflectionNamedType;
+use Throwable;
 use Webong\Cogent\Attributes\CachedRelation;
 use Webong\Cogent\Support\CachedRelationDefinition;
 use Webong\Cogent\Support\CachedRelationRegistry;
@@ -54,6 +55,12 @@ trait DefinesCachedRelations
      * relation definitions are built after boot completes, avoiding
      * `LogicException` from `bootIfNotBooted()` when `new $modelClass` is
      * called during `boot()`.
+     *
+     * Methods explicitly declared with #[CachedRelation] are processed first.
+     * Other relation-returning methods are attempted but any exception (including
+     * crashes from relation-builder helpers that require arguments, or relations
+     * with no cached configuration) is caught and the method is skipped, preventing
+     * crashes during model boot.
      */
     protected static function bootDefinesCachedRelations(): void
     {
@@ -78,10 +85,25 @@ trait DefinesCachedRelations
                     continue;
                 }
 
+                // Methods explicitly declared with #[CachedRelation] are processed
+                // first. Other relation-returning methods are attempted but any
+                // exception is caught and the method is skipped.
+                $attribute = $method->getAttributes(CachedRelation::class)[0] ?? null;
+                if ($attribute !== null) {
+                    try {
+                        $registry->for($modelClass, $method->name);
+                    } catch (\InvalidArgumentException) {
+                        // Not a cached relation, skip.
+                    }
+                    continue;
+                }
+
                 try {
                     $registry->for($modelClass, $method->name);
-                } catch (InvalidArgumentException) {
-                    // Not a cached relation, skip.
+                } catch (Throwable) {
+                    // Helper methods that require arguments crash here; skip them.
+                    // Methods without #[CachedRelation] that don't crash are
+                    // still registered (e.g. cached() helper relations).
                 }
             }
         });

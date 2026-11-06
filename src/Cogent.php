@@ -5,10 +5,13 @@ declare(strict_types=1);
 namespace Webong\Cogent;
 
 use Closure;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Webong\Cogent\Broadcasting\BroadcastBatch;
+use Webong\Cogent\QueryBuilder\CogentQueryBuilder;
 use Webong\Cogent\Resources\BroadcastLimit;
 use Webong\Cogent\Resources\RenderGuard;
 
@@ -101,6 +104,23 @@ final class Cogent
     public static function batchBroadcasts(Closure $callback): mixed
     {
         return BroadcastBatch::run($callback);
+    }
+
+    /**
+     * Build a Cogent query for the given model and resource class.
+     *
+     * Reads #[Filterable], #[Sortable], and #[Includable] from the resource
+     * and applies them through spatie/laravel-query-builder, then prepares
+     * the resources when they resolve.
+     *
+     * @param  Model|Builder|string  $model  Eloquent model, builder, or model class name
+     * @param  class-string  $resource  The resource class to read declarations from
+     * @param  Request|null  $request
+     * @return CogentQueryBuilder
+     */
+    public static function query(Model|Builder|string $model, string $resource, ?Request $request = null): CogentQueryBuilder
+    {
+        return CogentQueryBuilder::for($model, $resource, $request);
     }
 
     public static function flush(): void

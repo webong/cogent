@@ -104,36 +104,72 @@ Need a different query parameter than `?include=`? Register it once in a service
 Cogent::includeParameter('with');
 ```
 
-### JSON:API-style filtering and sorting (spatie/laravel-query-builder)
+### The Cogent approach: unified query interface
 
-Cogent works alongside [spatie/laravel-query-builder](https://github.com/spatie/laravel-query-builder) for JSON:API-style `filter[]`, `sort`, and `include` query parameters. Declare allowed filters, sorts, and includes on a spatie `QueryBuilder`, and Cogent's `PlanExporter` can document them in OpenAPI output:
+Cogent provides one interface for JSON:API-style query params (`filter[]`, `sort`, `include`), OpenAPI docs, and AsyncAPI docs — all driven by resource attribute declarations. You don't use spatie/laravel-query-builder directly; Cogent wraps it.
+
+Declare what your resource accepts right on the resource class:
 
 ```php
-use Spatie\QueryBuilder\QueryBuilder;
-use Spatie\QueryBuilder\AllowedFilter;
-use Spatie\QueryBuilder\AllowedInclude;
-use Spatie\QueryBuilder\AllowedSort;
+use Webong\Cogent\Attributes\Filterable;
+use Webong\Cogent\Attributes\Includable;
+use Webong\Cogent\Attributes\Sortable;
+use Webong\Cogent\Concerns\PreparesResources;
 
-$query = QueryBuilder::for(Post::query())
-    ->allowedFilters(AllowedFilter::exact('title'), AllowedFilter::partial('body'))
-    ->allowedSorts('title', 'created_at')
-    ->allowedIncludes('author', 'comments');
+#[Filterable(['title' => 'exact', 'body' => 'partial'])]
+#[Sortable(['title' => 'asc', 'created_at' => 'desc'])]
+#[Includable(['author' => UserResource::class], 'comments')]
+final class PostResource extends JsonResource
+{
+    use PreparesResources;
+}
 ```
 
-Read the declared metadata for documentation:
+Then query through `Cogent::query()` instead of spatie's `QueryBuilder::for()`:
 
 ```php
-use Webong\Cogent\QueryBuilder\QueryBuilderMetadata;
+use Webong\Cogent\Cogent;
 
-$metadata = QueryBuilderMetadata::from($query);
+// GET /posts?filter[title]=Hello&sort=-created_at&include=author
+$posts = Cogent::query(Post::query(), PostResource::class)->get();
+
+// Or paginated:
+$posts = Cogent::query(Post::query(), PostResource::class)->paginate(15);
+
+// Or cursor-paginated:
+$posts = Cogent::query(Post::query(), PostResource::class)->cursorPaginate(15);
+
+// Access the underlying spatie QueryBuilder for advanced customization:
+$spatie = Cogent::query(Post::query(), PostResource::class)->spatie();
+```
+
+`Cogent::query()` reads `#[Filterable]`, `#[Sortable]`, and `#[Includable]` from the resource class and applies them automatically through spatie. When the resource resolves, `PreparesResources` loads anything still missing and applies `#[Counts]` — spatie eager-loads the includes, Cogent fills in the gaps.
+
+**Attribute options:**
+
+| Attribute | What it declares | Query param |
+|---|---|---|
+| `#[Filterable(['title' => 'exact'])]` | Filterable fields and types | `filter[title]` |
+| `#[Sortable(['title' => 'asc'])]` | Sortable fields and directions | `sort` |
+| `#[Includable(['author'], 'comments')]` | Includable relations | `?include=` |
+
+Filter types: `exact`, `partial`, `beginsWith`, `endsWith`, `belongsTo`, `scope`. Default: `exact`.
+Sort directions: `asc`, `desc`. Default: `asc`.
+
+#### Read metadata for documentation
+
+```php
+use Webong\Cogent\QueryBuilder\CogentQueryBuilder;
+
+$metadata = CogentQueryBuilder::metadataFor(PostResource::class);
 
 // ['author' => null, 'comments' => null]
 $metadata['includes'];
 
-// ['title' => 'Spatie\\QueryBuilder\\Filters\\FiltersExact', 'body' => 'Spatie\\QueryBuilder\\Filters\\FiltersPartial']
+// ['title' => 'exact', 'body' => 'partial']
 $metadata['filters'];
 
-// ['title' => 'asc', 'created_at' => 'asc']
+// ['title' => 'asc', 'created_at' => 'desc']
 $metadata['sorts'];
 ```
 
@@ -146,11 +182,11 @@ $exporter = new PlanExporter();
 $document = $exporter->openApi(
     [PostResource::class],
     'include',
-    [PostResource::class => QueryBuilderMetadata::from($query)],
+    [PostResource::class => CogentQueryBuilder::metadataFor(PostResource::class)],
 );
 ```
 
-The resulting OpenAPI document gets `filter[title]`, `filter[body]`, and `sort` query parameters in `components.parameters`, plus an `x-cogent` extension carrying the filter class and sort direction for each.
+The resulting OpenAPI document gets `filter[title]`, `filter[body]`, and `sort` query parameters in `components.parameters`, plus an `x-cogent` extension carrying the filter type and sort direction for each.
 
 Combined with `#[Includable]` on your resources, this gives you full JSON:API-style query support: filtering, sorting, and includes — all declared, all documented, all validated.
 

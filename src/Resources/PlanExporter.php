@@ -7,6 +7,7 @@ namespace Webong\Cogent\Resources;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Webong\Cogent\Documentation\ClassDiscovery;
 use Webong\Cogent\Documentation\ResourceSchemaInferer;
+use Webong\Cogent\QueryBuilder\CogentQueryBuilder;
 
 /**
  * Describes what preparing resources declare, for tooling: documentation,
@@ -82,9 +83,9 @@ final class PlanExporter
             $name = class_basename($resource);
             $plans[$name] = $plan + ['schema' => $inferred['references'][$resource]];
 
-            $qbMeta = $queryBuilders[$resource] ?? null;
+            $qbMeta = $queryBuilders[$resource] ?? CogentQueryBuilder::metadataFor($resource);
 
-            if ($plan['requestable'] === [] && ($qbMeta === null || $qbMeta['includes'] === [])) {
+            if ($plan['requestable'] === [] && ($qbMeta['includes'] === [] && $qbMeta['filters'] === [] && $qbMeta['sorts'] === [])) {
                 continue;
             }
 
@@ -102,9 +103,9 @@ final class PlanExporter
                 ],
             ];
 
-            // spatie QueryBuilder filter parameters
-            if ($qbMeta !== null && $qbMeta['filters'] !== []) {
-                foreach ($qbMeta['filters'] as $filterName => $filterClass) {
+            // spatie QueryBuilder filter parameters (or Cogent #[Filterable] attributes)
+            if ($qbMeta['filters'] !== []) {
+                foreach ($qbMeta['filters'] as $filterName => $filterType) {
                     $parameters[$name.'Filter'.ucfirst($filterName)] = [
                         'name' => 'filter['.$filterName.']',
                         'in' => 'query',
@@ -113,13 +114,13 @@ final class PlanExporter
                         'style' => 'form',
                         'explode' => false,
                         'schema' => ['type' => 'string'],
-                        'x-cogent' => ['filterClass' => $filterClass],
+                        'x-cogent' => ['filterType' => $filterType],
                     ];
                 }
             }
 
-            // spatie QueryBuilder sort parameters
-            if ($qbMeta !== null && $qbMeta['sorts'] !== []) {
+            // spatie QueryBuilder sort parameters (or Cogent #[Sortable] attributes)
+            if ($qbMeta['sorts'] !== []) {
                 $parameters[$name.'Sort'] = [
                     'name' => 'sort',
                     'in' => 'query',

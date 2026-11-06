@@ -43,14 +43,20 @@ trait BroadcastsResources
     private function broadcastValue(ReflectionProperty $property): mixed
     {
         $value = $property->getValue($this);
-        $resource = ($property->getAttributes(WithResource::class)[0] ?? null)?->newInstance()->class;
+        $attribute = $property->getAttributes(WithResource::class)[0] ?? null;
+        $resourceConfig = $attribute?->newInstance();
+        $resourceClass = $resourceConfig?->class;
 
         if ($value instanceof Model) {
-            $resource ??= ResourcePlan::guessResource($value::class);
-            $value = $resource === null ? $value : $resource::make($value);
+            $this->applyResourceConfig($value, $resourceConfig);
+            $resourceClass ??= ResourcePlan::guessResource($value::class);
+            $value = $resourceClass === null ? $value : $resourceClass::make($value);
         } elseif ($value instanceof EloquentCollection && $value->first() instanceof Model) {
-            $resource ??= ResourcePlan::guessResource($value->first()::class);
-            $value = $resource === null ? $value : $resource::collection($value);
+            foreach ($value as $model) {
+                $this->applyResourceConfig($model, $resourceConfig);
+            }
+            $resourceClass ??= ResourcePlan::guessResource($value->first()::class);
+            $value = $resourceClass === null ? $value : $resourceClass::collection($value);
         }
 
         if ($value instanceof JsonResource) {
@@ -58,5 +64,27 @@ trait BroadcastsResources
         }
 
         return $value instanceof Arrayable ? $value->toArray() : $value;
+    }
+
+    /**
+     * Apply #[WithResource] appends/hidden configuration to a model.
+     *
+     * @param  Model  $model
+     * @param  WithResource|null  $resourceConfig
+     * @return void
+     */
+    private function applyResourceConfig(Model $model, ?WithResource $resourceConfig): void
+    {
+        if ($resourceConfig === null) {
+            return;
+        }
+
+        if ($resourceConfig->appends !== null) {
+            $model->setAppends($resourceConfig->appends);
+        }
+
+        if ($resourceConfig->hidden !== null) {
+            $model->setHidden($resourceConfig->hidden);
+        }
     }
 }

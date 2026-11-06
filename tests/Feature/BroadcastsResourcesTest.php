@@ -5,12 +5,15 @@ declare(strict_types=1);
 use Illuminate\Broadcasting\BroadcastEvent;
 use Illuminate\Contracts\Broadcasting\Factory as BroadcastFactory;
 use Illuminate\Support\Facades\Broadcast;
+use Webong\Cogent\Attributes\WithResource;
+use Webong\Cogent\Concerns\BroadcastsResources;
 use Webong\Cogent\Resources\ResourcePlan;
 use Webong\Cogent\Tests\Fixtures\Broadcasting\CapturingBroadcaster;
 use Webong\Cogent\Tests\Fixtures\Events\PostUpdated;
 use Webong\Cogent\Tests\Fixtures\Models\Comment;
 use Webong\Cogent\Tests\Fixtures\Models\Post;
 use Webong\Cogent\Tests\Fixtures\Models\User;
+use Webong\Cogent\Tests\Fixtures\Resources\BroadcastLeakyPostResource;
 
 beforeEach(function (): void {
     ResourcePlan::flush();
@@ -139,4 +142,53 @@ it('lets payloads under the limit through', function (): void {
     } finally {
         Webong\Cogent\Cogent::flush();
     }
+});
+
+it('sets appends on a model via #[WithResource]', function (): void {
+    $event = new class (Post::query()->firstOrFail()) {
+        use BroadcastsResources;
+
+        public function __construct(
+            #[WithResource(BroadcastLeakyPostResource::class, appends: ['upper_title'])]
+            public Post $post,
+        ) {
+        }
+    };
+
+    $event->broadcastWith();
+
+    expect($event->post->getAppends())->toContain('upper_title');
+});
+
+it('hides attributes from a model via #[WithResource]', function (): void {
+    $event = new class (Post::query()->firstOrFail()) {
+        use BroadcastsResources;
+
+        public function __construct(
+            #[WithResource(BroadcastLeakyPostResource::class, hidden: ['author'])]
+            public Post $post,
+        ) {
+        }
+    };
+
+    $event->broadcastWith();
+
+    expect($event->post->getHidden())->toContain('author');
+});
+
+it('applies both appends and hidden from #[WithResource]', function (): void {
+    $event = new class (Post::query()->firstOrFail()) {
+        use BroadcastsResources;
+
+        public function __construct(
+            #[WithResource(BroadcastLeakyPostResource::class, appends: ['upper_title'], hidden: ['author'])]
+            public Post $post,
+        ) {
+        }
+    };
+
+    $event->broadcastWith();
+
+    expect($event->post->getAppends())->toContain('upper_title');
+    expect($event->post->getHidden())->toContain('author');
 });

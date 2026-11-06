@@ -8,14 +8,12 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
-use Illuminate\Support\Str;
 use Webong\Cogent\Tests\Fixtures\Collections\PostCollection;
 
 /**
  * @property int $id
  * @property int|null $user_id
  * @property string $title
- * @property string|null $upper_title
  */
 class Post extends Model
 {
@@ -69,6 +67,6 @@ class Post extends Model
 
     public function upperTitle(): void
     {
-        $this->setAttribute('upper_title', Str::upper((string) $this->title));
+        $this->setAttribute('upper_title', mb_strtoupper((string) $this->title));
     }
 }

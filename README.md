@@ -29,10 +29,9 @@ Cogent works across the whole path of a Laravel object:
 
 | Area | What Cogent does |
 |---|---|
-| **Eloquent** | Plug, include and count relations on collections already in memory — no extra queries. |
-| **Request** | Load only the relations a request asks for (`?include=`), never more. |
-| **Output (Resource)** | Prepare every resource's relations and counts before rendering; cache the rendered output. |
-| **Event / Broadcast** | Send models over WebSockets as their resources; restore queued models without re-querying. |
+| **Eloquent / Fluent** | Plug, include and count relations on collections already in memory — no extra queries. |
+| **Request (Input/Output)** | Load only the relations a request asks for (`?include=`); prepare resource relations and counts before rendering; cache rendered output at the resource or controller level. |
+| **Event / Broadcast** | Send models over WebSockets as their resources; restore queued models without re-querying; batch broadcasts and check payload size. |
 
 ## Installation
 
@@ -44,7 +43,7 @@ The service provider is auto-discovered, so nothing else is required.
 
 ---
 
-## Eloquent — relations on collections already in memory
+## Eloquent / Fluent — relations on collections already in memory
 
 Cogent starts with collections you already have. Instead of letting Eloquent re-query relations, you attach, include, or count what's already loaded.
 
@@ -83,7 +82,9 @@ $conversations->batchCount('messages');
 
 ---
 
-## Request — load only what the client asks for
+## Request (Input/Output) — prepare, cache, guard
+
+### Requested relations (`?include=`)
 
 `#[Includable]` declares relations that load only when the request names them:
 
@@ -103,11 +104,9 @@ Need a different query parameter than `?include=`? Register it once in a service
 Cogent::includeParameter('with');
 ```
 
----
+### Declaring what a resource renders
 
-## Output (Resource) — prepare, cache, guard
-
-This is where Cogent pays off. Add `PreparesResources` to a resource and declare what it renders:
+Add `PreparesResources` to a resource and declare what it renders:
 
 ```php
 #[Includes(['author' => UserResource::class, 'channel'])]
@@ -182,9 +181,9 @@ Each authenticated user gets their own entry unless you mark it shared:
 
 `#[Remember]` lives on the resource. If you want to cache an entire controller response — including anything the controller adds beyond the resource — use the `remember()` macro on the request or response, or inject `OutputCache` directly. This is an Input/Output cache: the input is the models plus anything the output varies on, and the output is the rendered array. It auto-forgets when any of those models (or rows reached through their loaded relations) is saved or deleted.
 
-#### Configuration (config/cogent.php)
+#### Configuration (`config/cogent.php`)
 
-Cogent ships a config file with named cache surfaces, each with its own `enabled` flag and `ttl`. Surfaces follow the same domain/surface pattern used in the CRM:
+Cogent ships a config file with named cache surfaces, each with its own `enabled` flag and `ttl`:
 
 ```php
 return [
@@ -213,7 +212,7 @@ COGENT_LIST_CACHE_ENABLED=true
 COGENT_LIST_CACHE_TTL=30
 ```
 
-Using the request macro (wraps the build closure):
+#### Using the request macro (wraps the build closure)
 
 ```php
 public function index(Request $request)
@@ -230,7 +229,7 @@ public function index(Request $request)
 }
 ```
 
-Using the response macro (wraps an already-built response):
+#### Using the response macro (wraps an already-built response)
 
 ```php
 public function show(Post $post)
@@ -243,7 +242,7 @@ public function show(Post $post)
 }
 ```
 
-Or inject `OutputCache` directly:
+#### Injecting `OutputCache` directly
 
 ```php
 use Webong\Cogent\Resources\OutputCache;
@@ -262,7 +261,7 @@ public function index(OutputCache $cache, Request $request)
 }
 ```
 
-### Attribute-based caching on controller methods
+#### Attribute-based caching on controller methods
 
 Configure caching declaratively with `#[RememberResponse]` on a controller method. Register the `remember.response` middleware on the route:
 
@@ -288,7 +287,15 @@ public function index(Request $request)
 }
 ```
 
-#### Vary values
+**Options:**
+
+| Option | Description |
+|---|---|
+| `surface` | Named cache surface (`list`, `counts`, `detail`, `scope`, `context`). Must be enabled in `config/cogent.php`. |
+| `domain` | Cache domain grouping related resources (`posts`, `users`, `comments`, etc.). |
+| `vary` | Request input keys or closures that differentiate the cache entry. |
+| `shared` | One entry for everyone instead of per authenticated user. |
+| `when` | Closure receiving the request; only cache when it returns `true`. |
 
 `vary` accepts request input keys (strings) or closures that receive the request and return a value:
 
@@ -304,9 +311,7 @@ public function index(Request $request)
 )]
 ```
 
-#### Conditional caching (`when`)
-
-Only cache when a condition is met. Return `false` from `when` to skip caching entirely for that request:
+Only cache when a condition is met:
 
 ```php
 #[RememberResponse(
@@ -316,19 +321,9 @@ Only cache when a condition is met. Return `false` from `when` to skip caching e
 )]
 ```
 
-#### Auto-registration
+Domains and surfaces used in `#[RememberResponse]` attributes are automatically registered into `config/cogent.php` at runtime.
 
-Domains and surfaces used in `#[RememberResponse]` attributes are automatically registered into `config/cogent.php` at runtime — you don't need to manually add them to the registry. The first time a route with an attribute is hit, the middleware ensures the domain/surface combination exists in the config.
-
-- `surface` — named cache surface (`list`, `counts`, `detail`, `scope`, `context`). Must be enabled in `config/cogent.php`.
-- `domain` — cache domain grouping related resources (`posts`, `users`, `comments`, etc.).
-- `vary` — request input keys or closures that differentiate the cache entry.
-- `shared` — one entry for everyone instead of per authenticated user.
-- `when` — closure receiving the request; only cache when it returns `true`.
-
-The cache key is built from the domain, surface, route-bound models, and `vary` values. Tags are used for automatic invalidation: saving or deleting a route-bound model (or any row reached through its loaded relations) forgets the entry.
-
-### Make sure nothing lazy-loads while rendering
+#### Make sure nothing lazy-loads while rendering
 
 Turn on the dev guard so any query that sneaks in while a resource renders throws instead of silently becoming an N+1:
 
@@ -344,6 +339,8 @@ Cogent::handleResourceQueriesUsing(function (string $resource, \Illuminate\Datab
 ---
 
 ## Event / Broadcast — WebSockets and queues
+
+### Broadcast models through their resources
 
 Send models over WebSockets as their resources, so clients get the same shape over a socket as over HTTP:
 

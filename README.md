@@ -494,6 +494,28 @@ final class PostUpdated implements ShouldBroadcast
 }
 ```
 
+### Broadcast documentation (AsyncAPI)
+
+AsyncAPI is **documentation only** — it describes what your broadcast events look like; it doesn't handle WebSocket connections at runtime (that's Reverb/Pusher's job).
+
+Generate an AsyncAPI 3.0 document so frontend teams know what channels to subscribe to and what payload shapes to expect:
+
+```bash
+php artisan cogent:plans --format=asyncapi \
+    --events-path=app/Events \
+    --models-path=app/Models \
+    --title="My Application WebSockets"
+```
+
+It scans events using `BroadcastsResources`/`SnapshotsBroadcasts` and models using `BroadcastsAsResource`, producing:
+
+- **Channels** — where events broadcast (public, private, presence), with dynamic addresses marked
+- **Operations** — send actions for each event
+- **Messages** — event names and payload schemas
+- **Schemas** — the resource shapes broadcast over the socket
+
+The OpenAPI and AsyncAPI formats require `composer require --dev dedoc/scramble`.
+
 ---
 
 ## Artisan commands

@@ -103,6 +103,17 @@ php artisan cogent:plans --format=asyncapi \
     --title="My Application WebSockets"
 ```
 
+### What it does (and doesn't do)
+
+AsyncAPI is **documentation only** — it describes what your broadcast events look like, it doesn't handle WebSocket connections at runtime (that's Reverb/Pusher's job).
+
+It scans your event and model classes and produces an AsyncAPI 3.0 document so frontend teams know:
+
+- What channels events are broadcast on (public, private, presence)
+- What event names to listen for
+- What payload shape each event has
+- Which parts of channel addresses are dynamic (e.g., `posts.{id}`)
+
 ### What it discovers
 
 **Events** — classes using `BroadcastsResources` or `SnapshotsBroadcasts`:
@@ -124,7 +135,39 @@ Save the output:
 php artisan cogent:plans --format=asyncapi > public/docs/cogent-asyncapi.json
 ```
 
+### Example
+
+```json
+{
+  "asyncapi": "3.0.0",
+  "channels": {
+    "PostUpdatedChannel": {
+      "address": "private-posts.{parameter}",
+      "x-cogent": { "type": "private", "dynamic": true }
+    }
+  },
+  "operations": {
+    "PostUpdated": {
+      "action": "send",
+      "channel": { "$ref": "#/channels/PostUpdatedChannel" }
+    }
+  },
+  "components": {
+    "messages": {
+      "PostUpdated": {
+        "name": "post.updated",
+        "payload": { "$ref": "#/components/schemas/PostUpdatedPayload" }
+      }
+    },
+    "schemas": {
+      "PostResource": { "type": "object", ... }
+    }
+  }
+}
+```
+
 ---
+
 
 ## JSON plans
 

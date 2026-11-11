@@ -7,6 +7,7 @@ namespace Webong\Cogent;
 use Closure;
 use DateInterval;
 use DateTimeInterface;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Webong\Cogent\Support\CachedRelationCollector;
 use Webong\Cogent\Support\CachedRelationOverrides;
@@ -26,6 +27,7 @@ if (! function_exists('Webong\Cogent\cached')) {
      * @param  string|Closure(mixed): string|null  $key  A key template accepting {model}, {relation} and {value}.
      * @param  class-string<\Webong\Cogent\Contracts\CachedRelationResolver>|Closure|null  $resolver
      * @param  class-string<\Illuminate\Support\Collection>|null  $collection
+     * @param  Closure(Model, mixed): string|class-string|null  $keyResolver  Dynamic cache key resolver receiving (Model $model, mixed $id): string.
      * @return TRelation
      */
     function cached(
@@ -36,6 +38,7 @@ if (! function_exists('Webong\Cogent\cached')) {
         int|DateTimeInterface|DateInterval|null $ttl = null,
         string|Closure|null $resolver = null,
         ?string $collection = null,
+        Closure|string|null $keyResolver = null,
     ): Relation {
         CachedRelationCollector::push(new CachedRelationOverrides(
             localKey: $localKey,
@@ -44,6 +47,7 @@ if (! function_exists('Webong\Cogent\cached')) {
             ttl: $ttl,
             resolver: $resolver,
             collection: $collection,
+            keyResolver: $keyResolver,
         ));
 
         return $relation;

@@ -56,7 +56,7 @@ trait CachesRelations
                 localKey: $definition->localKey,
                 relatedClass: $definition->relatedClass,
                 resolver: $definition->resolve(...),
-                cacheKey: $definition->cacheKeyFor(...),
+                cacheKey: fn (mixed $value, ?Model $model = null): string => $definition->cacheKeyFor($value, $model),
                 ttl: $definition->ttl,
                 collectionClass: $definition->collectionClass ?? Collection::class,
                 missingOnly: false,
@@ -68,7 +68,7 @@ trait CachesRelations
             localKey: $definition->localKey,
             relatedClass: $definition->relatedClass,
             resolver: $definition->resolve(...),
-            cacheKey: $definition->cacheKeyFor(...),
+            cacheKey: fn (mixed $value, ?Model $model = null): string => $definition->cacheKeyFor($value, $model),
             ttl: $definition->ttl,
         );
     }
@@ -87,7 +87,7 @@ trait CachesRelations
                 localKey: $definition->localKey,
                 relatedClass: $definition->relatedClass,
                 resolver: $definition->resolve(...),
-                cacheKey: $definition->cacheKeyFor(...),
+                cacheKey: fn (mixed $value, ?Model $model = null): string => $definition->cacheKeyFor($value, $model),
                 ttl: $definition->ttl,
                 collectionClass: $definition->collectionClass ?? Collection::class,
                 missingOnly: true,
@@ -99,7 +99,7 @@ trait CachesRelations
             localKey: $definition->localKey,
             relatedClass: $definition->relatedClass,
             resolver: $definition->resolve(...),
-            cacheKey: $definition->cacheKeyFor(...),
+            cacheKey: fn (mixed $value, ?Model $model = null): string => $definition->cacheKeyFor($value, $model),
             ttl: $definition->ttl,
         );
     }
@@ -113,7 +113,10 @@ trait CachesRelations
         $definition = $this->cachedRelationDefinition($relation);
 
         if (func_num_args() >= 2) {
-            return Cache::has($definition->cacheKeyFor($localValue));
+            $model = $this->first(fn (Model $m): bool => $m->getAttribute($definition->localKey) === $localValue);
+            $value = Cache::get($definition->cacheKeyFor($localValue, $model));
+
+            return is_array($value) && count($value) > 0;
         }
 
         /** @var list<mixed> $localValues */
@@ -124,16 +127,34 @@ trait CachesRelations
             ->values()
             ->all();
 
-        return $localValues !== []
-            && collect($localValues)->every(fn (mixed $value): bool => Cache::has($definition->cacheKeyFor($value)));
+        if ($localValues === []) {
+            return false;
+        }
+
+        // Build a value-to-model map so dynamic key resolvers can access the model.
+        $valueToModel = [];
+        foreach ($this as $model) {
+            $value = $model->getAttribute($definition->localKey);
+            if ($value !== null && ! array_key_exists((string) $value, $valueToModel)) {
+                $valueToModel[(string) $value] = $model;
+            }
+        }
+
+        return collect($localValues)->every(function (mixed $value) use ($valueToModel, $definition): bool {
+            $model = $valueToModel[(string) $value] ?? null;
+            $value = Cache::get($definition->cacheKeyFor($value, $model));
+
+            return is_array($value) && count($value) > 0;
+        });
     }
 
     public function getCachedRelation(string $relation, mixed $localValue): ?Model
     {
         $definition = $this->cachedRelationDefinition($relation);
-        $attributes = Cache::get($definition->cacheKeyFor($localValue));
+        $model = $this->first(fn (Model $m): bool => $m->getAttribute($definition->localKey) === $localValue);
+        $attributes = Cache::get($definition->cacheKeyFor($localValue, $model));
 
-        if (! is_array($attributes) || $definition->many) {
+        if (! is_array($attributes) || $definition->many || empty($attributes)) {
             return null;
         }
 

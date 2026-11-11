@@ -39,6 +39,7 @@ final class CachedRelationMacro
          * @param  string|Closure(mixed): string|null  $key
          * @param  string|Closure|null  $resolver
          * @param  class-string<\Illuminate\Support\Collection>|null  $collection
+         * @param  Closure(Model, mixed): string|class-string|null  $keyResolver
          * @return static
          */
         return function (
@@ -48,6 +49,7 @@ final class CachedRelationMacro
             ?string $collection = null,
             ?string $localKey = null,
             ?string $foreignKey = null,
+            Closure|string|null $keyResolver = null,
         ): Relation {
             CachedRelationCollector::push(new CachedRelationOverrides(
                 localKey: $localKey,
@@ -56,6 +58,7 @@ final class CachedRelationMacro
                 ttl: $ttl,
                 resolver: $resolver,
                 collection: $collection,
+                keyResolver: $keyResolver,
             ));
 
             return $this;

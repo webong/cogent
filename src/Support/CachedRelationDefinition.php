@@ -28,6 +28,7 @@ final readonly class CachedRelationDefinition
      * @param  string|null  $relatedMorphType  The column on the related model that holds its parent type.
      * @param  string|null  $morphClass  The parent type related morph rows must match.
      * @param  Closure(mixed): string|string|null  $key
+     * @param  Closure(Model, mixed): string|class-string|null  $keyResolver  Dynamic cache key resolver receiving (Model $model, mixed $id): string.
      * @param  Closure(Builder, list<mixed>): Collection<array-key, mixed>|class-string<CachedRelationResolver>|string|null  $resolver
      */
     public function __construct(
@@ -42,14 +43,21 @@ final readonly class CachedRelationDefinition
         public ?string $relatedMorphType = null,
         public ?string $morphClass = null,
         public Closure|string|null $key = null,
+        public Closure|string|null $keyResolver = null,
         public int|DateTimeInterface|DateInterval $ttl = 86400,
         public Closure|string|null $resolver = null,
         public ?Builder $baseQuery = null,
     ) {
     }
 
-    public function cacheKeyFor(mixed $localValue): string
+    public function cacheKeyFor(mixed $localValue, ?Model $model = null): string
     {
+        if ($this->keyResolver !== null && $model !== null) {
+            $resolver = $this->resolveKeyResolver($this->keyResolver);
+
+            return $resolver($model, $localValue);
+        }
+
         if ($this->key instanceof Closure) {
             return ($this->key)($localValue);
         }
@@ -137,6 +145,21 @@ final readonly class CachedRelationDefinition
         }
 
         return Closure::fromCallable([new $resolver, 'resolve']);
+    }
+
+    /**
+     * Resolve the keyResolver into a callable (Model, mixed): string.
+     *
+     * @param  class-string|Closure  $keyResolver
+     * @return Closure(Model, mixed): string
+     */
+    private function resolveKeyResolver(string|Closure $keyResolver): Closure
+    {
+        if ($keyResolver instanceof Closure) {
+            return $keyResolver;
+        }
+
+        return Closure::fromCallable([new $keyResolver, '__invoke']);
     }
 
     /**

@@ -95,7 +95,7 @@ class CachedRelationRegistry
 
         foreach ($this->byRelatedClass[$related::class] ?? [] as $key => $ignored) {
             foreach ($this->definitions[$key]->localValuesFor($related) as $localValue) {
-                $cacheKey = $this->definitions[$key]->cacheKeyFor($localValue);
+                $cacheKey = $this->definitions[$key]->cacheKeyFor($localValue, $related);
 
                 Cache::forget($cacheKey);
 
@@ -170,6 +170,7 @@ class CachedRelationRegistry
             ttl: $attribute?->ttl,
             resolver: $attribute?->resolver,
             collection: $attribute?->collection,
+            keyResolver: $attribute?->keyResolver,
         );
 
         return $overrides === null ? $fromAttribute : $overrides->merge($fromAttribute);
@@ -213,6 +214,7 @@ class CachedRelationRegistry
             relatedMorphType: $relatedMorphType,
             morphClass: $morphClass,
             key: $overrides->key,
+            keyResolver: $overrides->keyResolver,
             ttl: $overrides->ttl ?? 86400,
             resolver: $overrides->resolver,
             baseQuery: $declared->getQuery(),

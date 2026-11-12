@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Queue\SerializesModels;
 use ReflectionClass;
 use Webong\Cogent\Attributes\WithResource;
+use Webong\Cogent\Attributes\WithResponse;
 use Webong\Cogent\Resources\ResourcePreparer;
 
 /**
@@ -36,16 +37,52 @@ trait SerializesPreparedModels
         $request = Container::getInstance()->make('request');
 
         foreach ((new ReflectionClass($this))->getProperties() as $property) {
-            $attribute = $property->getAttributes(WithResource::class)[0] ?? null;
+            $resourceAttribute = $property->getAttributes(WithResource::class)[0] ?? null;
+            $responseAttribute = $property->getAttributes(WithResponse::class)[0] ?? null;
 
-            if ($attribute === null || $property->isStatic() || ! $property->isInitialized($this)) {
+            if ($resourceAttribute === null && $responseAttribute === null) {
+                continue;
+            }
+
+            if ($property->isStatic() || ! $property->isInitialized($this)) {
                 continue;
             }
 
             $value = $property->getValue($this);
 
-            if ($value instanceof Model || $value instanceof EloquentCollection) {
-                $preparer->prepare($value instanceof Model ? [$value] : $value, $attribute->newInstance()->class, $request, [], []);
+            if (! ($value instanceof Model || $value instanceof EloquentCollection)) {
+                continue;
+            }
+
+            $models = $value instanceof Model ? [$value] : $value;
+            $resourceClass = null;
+
+            if ($resourceAttribute !== null) {
+                $resourceClass = $resourceAttribute->newInstance()->class;
+            }
+
+            if ($responseAttribute !== null) {
+                $responseConfig = $responseAttribute->newInstance();
+
+                foreach ($models as $model) {
+                    if ($responseConfig->appends !== null) {
+                        $model->setAppends($responseConfig->appends);
+                    }
+
+                    if ($responseConfig->hidden !== null) {
+                        $model->setHidden($responseConfig->hidden);
+                    }
+
+                    if ($responseConfig->visible !== null) {
+                        $model->setVisible($responseConfig->visible);
+                    }
+                }
+
+                $resourceClass ??= $responseConfig->resource;
+            }
+
+            if ($resourceClass !== null) {
+                $preparer->prepare($models, $resourceClass, $request, [], []);
             }
         }
     }

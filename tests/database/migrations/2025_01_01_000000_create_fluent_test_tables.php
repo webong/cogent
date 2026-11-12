@@ -19,6 +19,7 @@ return new class extends Migration {
             $table->foreignId('user_id')->nullable();
             $table->string('title');
             $table->unsignedInteger('views')->default(0);
+            $table->string('secret')->nullable();
         });
 
         Schema::create('comments', function (Blueprint $table): void {

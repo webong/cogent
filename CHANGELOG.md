@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Added
+- `#[WithResponse]` attribute — per-property HTTP response serialization control (`resource`, `wrap`, `with`, `appends`, `hidden`, `visible`), applied by `BroadcastsResources` and `SerializesPreparedModels`
 - `Collection::macro('toResourceCollection')` — build a preparing resource collection from any Eloquent collection
 - `config/cogent.php` — configurable cache surfaces with domains, registry, and per-surface enabled/TTL
 - `CogentCacheNameBuilder` — CRM-style cache key/tag construction (`cogent:{domain}:{surface}:...`)

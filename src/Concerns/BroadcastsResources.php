@@ -11,6 +11,7 @@ use Illuminate\Http\Resources\Json\JsonResource;
 use ReflectionClass;
 use ReflectionProperty;
 use Webong\Cogent\Attributes\WithResource;
+use Webong\Cogent\Attributes\WithResponse;
 use Webong\Cogent\Resources\BroadcastLimit;
 use Webong\Cogent\Resources\ResourcePayload;
 use Webong\Cogent\Resources\ResourcePlan;
@@ -43,27 +44,41 @@ trait BroadcastsResources
     private function broadcastValue(ReflectionProperty $property): mixed
     {
         $value = $property->getValue($this);
-        $attribute = $property->getAttributes(WithResource::class)[0] ?? null;
-        $resourceConfig = $attribute?->newInstance();
-        $resourceClass = $resourceConfig?->class;
+        $resourceAttribute = $property->getAttributes(WithResource::class)[0] ?? null;
+        $responseAttribute = $property->getAttributes(WithResponse::class)[0] ?? null;
+
+        $resourceConfig = $resourceAttribute?->newInstance();
+        $responseConfig = $responseAttribute?->newInstance();
+
+        $resourceClass = $responseConfig?->resource;
+
+        if ($resourceConfig !== null) {
+            $resourceClass = $resourceConfig->class;
+        }
 
         if ($value instanceof Model) {
             $this->applyResourceConfig($value, $resourceConfig);
+            $this->applyResponseConfig($value, $responseConfig);
             $resourceClass ??= ResourcePlan::guessResource($value::class);
             $value = $resourceClass === null ? $value : $resourceClass::make($value);
         } elseif ($value instanceof EloquentCollection && $value->first() instanceof Model) {
             foreach ($value as $model) {
                 $this->applyResourceConfig($model, $resourceConfig);
+                $this->applyResponseConfig($model, $responseConfig);
             }
             $resourceClass ??= ResourcePlan::guessResource($value->first()::class);
             $value = $resourceClass === null ? $value : $resourceClass::collection($value);
         }
 
-        if ($value instanceof JsonResource) {
-            return ResourcePayload::from($value);
+        $result = $value instanceof JsonResource
+            ? ResourcePayload::from($value)
+            : ($value instanceof Arrayable ? $value->toArray() : $value);
+
+        if ($responseConfig?->wrap !== null) {
+            return [$responseConfig->wrap => $result];
         }
 
-        return $value instanceof Arrayable ? $value->toArray() : $value;
+        return $result;
     }
 
     /**
@@ -85,6 +100,32 @@ trait BroadcastsResources
 
         if ($resourceConfig->hidden !== null) {
             $model->setHidden($resourceConfig->hidden);
+        }
+    }
+
+    /**
+     * Apply #[WithResponse] appends/hidden/visible configuration to a model.
+     *
+     * @param  Model  $model
+     * @param  WithResponse|null  $responseConfig
+     * @return void
+     */
+    private function applyResponseConfig(Model $model, ?WithResponse $responseConfig): void
+    {
+        if ($responseConfig === null) {
+            return;
+        }
+
+        if ($responseConfig->appends !== null) {
+            $model->setAppends($responseConfig->appends);
+        }
+
+        if ($responseConfig->hidden !== null) {
+            $model->setHidden($responseConfig->hidden);
+        }
+
+        if ($responseConfig->visible !== null) {
+            $model->setVisible($responseConfig->visible);
         }
     }
 }

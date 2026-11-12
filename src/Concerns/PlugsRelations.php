@@ -300,7 +300,7 @@ trait PlugsRelations
     /**
      * @param  class-string<Model>  $relatedClass
      * @param  Closure(list<mixed>): SupportCollection<array-key, covariant Model>  $resolver
-     * @param  Closure(mixed): string  $cacheKey
+     * @param  Closure(mixed, Model): string  $cacheKey
      */
     private function plugCachedRelation(
         string $relation,

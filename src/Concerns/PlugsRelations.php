@@ -126,7 +126,7 @@ trait PlugsRelations
      *
      * @param  class-string<Model>  $relatedClass
      * @param  Closure(list<mixed>): SupportCollection<array-key, covariant Model>  $resolver
-     * @param  Closure(mixed, ?Model): string  $cacheKey
+     * @param  Closure(mixed, Model): string  $cacheKey
      */
     public function plugCached(
         string $relation,
@@ -152,7 +152,7 @@ trait PlugsRelations
      *
      * @param  class-string<Model>  $relatedClass
      * @param  Closure(list<mixed>): SupportCollection<array-key, covariant Model>  $resolver
-     * @param  Closure(mixed, ?Model): string  $cacheKey
+     * @param  Closure(mixed, Model): string  $cacheKey
      */
     public function plugCachedMissing(
         string $relation,
@@ -178,7 +178,7 @@ trait PlugsRelations
      *
      * @param  class-string<Model>  $relatedClass
      * @param  Closure(list<mixed>): SupportCollection<array-key, mixed>  $resolver
-     * @param  Closure(mixed, ?Model): string  $cacheKey
+     * @param  Closure(mixed, Model): string  $cacheKey
      * @param  class-string<SupportCollection>  $collectionClass
      */
     public function plugCachedCollection(

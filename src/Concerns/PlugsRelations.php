@@ -133,7 +133,7 @@ trait PlugsRelations
         string $localKey,
         string $relatedClass,
         Closure $resolver,
-        Closure $cacheKey,
+        $cacheKey,
         DateTimeInterface|int $ttl = 86400,
     ): static {
         return $this->plugCachedRelation(
@@ -159,7 +159,7 @@ trait PlugsRelations
         string $localKey,
         string $relatedClass,
         Closure $resolver,
-        Closure $cacheKey,
+        $cacheKey,
         DateTimeInterface|int $ttl = 86400,
     ): static {
         return $this->plugCachedRelation(
@@ -186,7 +186,7 @@ trait PlugsRelations
         string $localKey,
         string $relatedClass,
         Closure $resolver,
-        Closure $cacheKey,
+        $cacheKey,
         DateTimeInterface|int $ttl,
         string $collectionClass,
         bool $missingOnly = false,
@@ -307,7 +307,7 @@ trait PlugsRelations
         string $localKey,
         string $relatedClass,
         Closure $resolver,
-        Closure $cacheKey,
+        $cacheKey,
         DateTimeInterface|int $ttl,
         bool $missingOnly,
     ): static {

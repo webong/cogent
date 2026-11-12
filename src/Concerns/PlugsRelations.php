@@ -208,7 +208,7 @@ trait PlugsRelations
             }
         }
 
-        /** @var list<mixed> $localValues */
+        /** @var list<int|string> $localValues */
         $localValues = array_keys($valueToModel);
 
         if ($localValues === []) {
@@ -328,7 +328,7 @@ trait PlugsRelations
             }
         }
 
-        /** @var list<mixed> $localValues */
+        /** @var list<int|string> $localValues */
         $localValues = array_keys($valueToModel);
 
         if ($localValues === []) {

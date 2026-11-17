@@ -11,6 +11,8 @@ parameters:
     excludePaths:
         # The macro is bound to the relation at call time, so $this only exists there.
         - src/Support/CachedRelationMacro.php
+        # The macro is bound to the builder at call time, so $this only exists there.
+        - src/QueryBuilder/InterpretMacro.php
     paths:
         - src/
         - tests/Fixtures/

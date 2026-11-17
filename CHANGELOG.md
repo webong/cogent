@@ -14,9 +14,13 @@
 - `response()->remember()` macro — cache already-built response content
 - Unified `cogent:plans --format` command (table, json, openapi, asyncapi)
 - `docs/` directory — user-facing documentation (index.md, caching.md)
+- `Model::interpret()` / `Builder::interpret()` macro — model-first Cogent queries that read the resource's `#[Filterable]`, `#[Sortable]` and `#[Includable]` declarations
+- `CogentQueryBuilder::explainer()` — access the underlying query builder
 
 ### Changed
 - `cogent:asyncapi` command merged into `cogent:plans --format=asyncapi`
+- Removed `Cogent::query()` in favour of `Model::interpret()`; `Cogent::` is now settings-only
+- Renamed `CogentQueryBuilder::spatie()` to `explainer()`
 - `RememberResponse` attribute now uses `surface`/`domain` instead of `ttl`/`shared` as primary config
 - `#[Remember]` on resources now works alongside controller-level caching macros
 

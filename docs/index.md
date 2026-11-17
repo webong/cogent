@@ -173,7 +173,7 @@ php artisan cogent:plans --format=asyncapi > public/docs/cogent-asyncapi.json
 | Layer | Runtime (handles live requests/events) | Documentation (spec only) |
 |---|---|---|
 | **Eloquent / Fluent** | `plug`, `include`, `batchCount` on collections | — |
-| **Request** | spatie/laravel-query-builder via `Cogent::query()` | OpenAPI 3.1 |
+| **Request** | spatie/laravel-query-builder via `Post::interpret()` | OpenAPI 3.1 |
 | **Output (Resource)** | `PreparesResources`, `#[Remember]`, output cache | — |
 | **Event / Broadcast** | Laravel Reverb/Pusher via `BroadcastsResources` | AsyncAPI 3.0 |
 

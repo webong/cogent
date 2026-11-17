@@ -12,11 +12,13 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
+use InvalidArgumentException;
 use Spatie\QueryBuilder\AllowedFilter;
 use Spatie\QueryBuilder\AllowedSort;
 use Spatie\QueryBuilder\QueryBuilder as SpatieQueryBuilder;
 use Webong\Cogent\Attributes\Filterable;
 use Webong\Cogent\Attributes\Sortable;
+use Webong\Cogent\Resources\ResourcePlan;
 
 /**
  * A unified query builder for Cogent resources.
@@ -25,8 +27,13 @@ use Webong\Cogent\Attributes\Sortable;
  * Reads #[Filterable], #[Sortable], and #[Includable] from the resource class
  * and applies them automatically.
  *
- *     $posts = Cogent::query(Post::query(), PostResource::class)
- *     ->get();
+ *     $posts = Post::interpret(PostResource::class)->get();
+ *
+ *     // The resource may be guessed from the model instead:
+ *     $posts = Post::interpret()->get();
+ *
+ *     // Or start from the model's own query:
+ *     $posts = Post::query()->interpret(PostResource::class)->get();
  *
  *     // GET /posts?filter[title]=Hello&sort=-created_at&include=author
  *
@@ -37,22 +44,22 @@ final class CogentQueryBuilder
 {
     /**
      * @param  Model|Builder|string  $model  Eloquent model, builder, or model class name
-     * @param  class-string  $resource  The resource class to read declarations from
+     * @param  class-string|null  $resource  The resource class to read declarations from; guessed from the model when null
      * @param  Request|null  $request
      */
-    public static function for(Model|Builder|string $model, string $resource, ?Request $request = null): static
+    public static function for(Model|Builder|string $model, ?string $resource = null, ?Request $request = null): static
     {
         return new static($model, $resource, $request);
     }
 
     /**
      * @param  Model|Builder|string  $model
-     * @param  class-string  $resource
+     * @param  class-string|null  $resource
      * @param  Request|null  $request
      */
     private function __construct(
         private Model|Builder|string $model,
-        private string $resource,
+        private ?string $resource = null,
         private ?Request $request = null,
     ) {
     }
@@ -94,9 +101,12 @@ final class CogentQueryBuilder
     }
 
     /**
-     * Get the underlying spatie QueryBuilder, for advanced customization.
+     * Get the underlying query builder Cogent drives, for advanced customization.
+     *
+     * The returned builder is what actually runs the query; today that is a
+     * spatie/laravel-query-builder QueryBuilder.
      */
-    public function spatie(): SpatieQueryBuilder
+    public function explainer(): SpatieQueryBuilder
     {
         return $this->buildSpatie();
     }
@@ -142,9 +152,54 @@ final class CogentQueryBuilder
         return $modelClass::query();
     }
 
+    /**
+     * The resource to read declarations from, guessed from the model when none
+     * was given.
+     *
+     * @return class-string
+     */
+    private function resourceClass(): string
+    {
+        if ($this->resource !== null) {
+            return $this->resource;
+        }
+
+        $model = $this->modelClass();
+
+        $resource = ResourcePlan::guessResource($model);
+
+        if ($resource === null) {
+            throw new InvalidArgumentException(sprintf(
+                'No resource found for model [%s]. Pass one explicitly, or declare it with #[UseResource] or the App\\Http\\Resources naming convention.',
+                $model,
+            ));
+        }
+
+        return $this->resource = $resource;
+    }
+
+    /**
+     * @return class-string<Model>
+     */
+    private function modelClass(): string
+    {
+        if ($this->model instanceof EloquentModel) {
+            return $this->model::class;
+        }
+
+        if ($this->model instanceof Builder) {
+            return $this->model->getModel()::class;
+        }
+
+        /** @var class-string<Model> $model */
+        $model = $this->model;
+
+        return $model;
+    }
+
     private function applyFilters(SpatieQueryBuilder $spatie): void
     {
-        $reflection = new \ReflectionClass($this->resource);
+        $reflection = new \ReflectionClass($this->resourceClass());
         $attribute = $reflection->getAttributes(Filterable::class)[0] ?? null;
 
         if ($attribute === null) {
@@ -160,7 +215,7 @@ final class CogentQueryBuilder
 
     private function applySorts(SpatieQueryBuilder $spatie): void
     {
-        $reflection = new \ReflectionClass($this->resource);
+        $reflection = new \ReflectionClass($this->resourceClass());
         $attribute = $reflection->getAttributes(Sortable::class)[0] ?? null;
 
         if ($attribute === null) {
@@ -176,7 +231,7 @@ final class CogentQueryBuilder
 
     private function applyIncludes(SpatieQueryBuilder $spatie): void
     {
-        $reflection = new \ReflectionClass($this->resource);
+        $reflection = new \ReflectionClass($this->resourceClass());
         $attribute = $reflection->getAttributes(\Webong\Cogent\Attributes\Includable::class)[0] ?? null;
 
         if ($attribute === null) {

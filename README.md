@@ -125,25 +125,31 @@ final class PostResource extends JsonResource
 }
 ```
 
-Then query through `Cogent::query()` instead of spatie's `QueryBuilder::for()`:
+Then query from the model itself — no `Cogent::` call in your controllers:
 
 ```php
-use Webong\Cogent\Cogent;
-
 // GET /posts?filter[title]=Hello&sort=-created_at&include=author
-$posts = Cogent::query(Post::query(), PostResource::class)->get();
+$posts = Post::interpret(PostResource::class)->get();
 
-// Or paginated:
-$posts = Cogent::query(Post::query(), PostResource::class)->paginate(15);
+// The resource is guessed from #[UseResource] or App\Http\Resources\PostResource:
+$posts = Post::interpret()->get();
 
-// Or cursor-paginated:
-$posts = Cogent::query(Post::query(), PostResource::class)->cursorPaginate(15);
+// Or keep Eloquent's query() first:
+$posts = Post::query()->interpret(PostResource::class)->get();
 
-// Access the underlying spatie QueryBuilder for advanced customization:
-$spatie = Cogent::query(Post::query(), PostResource::class)->spatie();
+// Paginated:
+$posts = Post::interpret(PostResource::class)->paginate(15);
+
+// Cursor-paginated:
+$posts = Post::interpret(PostResource::class)->cursorPaginate(15);
+
+// Reach the underlying query builder for advanced customization:
+$query = Post::interpret(PostResource::class)->explainer();
 ```
 
-`Cogent::query()` reads `#[Filterable]`, `#[Sortable]`, and `#[Includable]` from the resource class and applies them automatically through spatie. When the resource resolves, `PreparesResources` loads anything still missing and applies `#[Counts]` — spatie eager-loads the includes, Cogent fills in the gaps.
+`interpret()` reads `#[Filterable]`, `#[Sortable]`, and `#[Includable]` from the resource class and applies them automatically through spatie. When the resource resolves, `PreparesResources` loads anything still missing and applies `#[Counts]` — spatie eager-loads the includes, Cogent fills in the gaps.
+
+`Cogent::` is not a query API. It only holds app-wide settings you configure once in a service provider.
 
 **Attribute options:**
 

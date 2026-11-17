@@ -20,6 +20,7 @@ use Webong\Cogent\Cache\CogentCacheInvalidator;
 use Webong\Cogent\Cache\CogentCacheNameBuilder;
 use Webong\Cogent\Cache\SurfaceCache;
 use Webong\Cogent\Console\PlansCommand;
+use Webong\Cogent\QueryBuilder\InterpretMacro;
 use Webong\Cogent\Resources\OutputCache;
 use Webong\Cogent\Resources\PreparedResourceCollection;
 use Webong\Cogent\Resources\RenderGuard;
@@ -106,6 +107,7 @@ class CogentServiceProvider extends ServiceProvider
     public function boot(): void
     {
         CachedRelationMacro::register();
+        InterpretMacro::register();
 
         $this->app['router']->aliasMiddleware(
             'remember.response',

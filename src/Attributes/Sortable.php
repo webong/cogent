@@ -7,11 +7,13 @@ namespace Webong\Cogent\Attributes;
 /**
  * Declare sortable fields on a resource, for JSON:API-style `sort` queries.
  *
- * Combine with `Cogent::query()` to apply spatie/laravel-query-builder sorts
- * automatically based on your resource declarations.
+ * Combine with `Post::interpret(PostResource::class)` to apply
+ * spatie/laravel-query-builder sorts automatically from your declarations.
  *
  *     #[Sortable(['title' => 'asc', 'created_at' => 'desc'])]
  *     final class PostResource extends JsonResource
+ *
+ *     $posts = Post::interpret(PostResource::class)->get();
  *
  * Direction: `asc` or `desc`. Omit to default to `asc`.
  */
